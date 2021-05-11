@@ -1,4 +1,4 @@
-from random import choice
+from random import choice, randint
 
 from torch import nn
 #   CONV1 = auto()
@@ -57,3 +57,20 @@ class ConvBlock(nn.Module):
 
     def forward(self, input):
         return self.net(input)
+
+class Genome(AutoRepr):
+    def __init__(self, genes):
+        self.genes = genes
+
+    @classmethod
+    def make_random(cls, min_length, max_length):
+        length = randint(min_length, max_length)
+        result = []
+        for _ in range(length):
+            node_class = choice(cls.__instantiable_classes())
+            result.append(node_class.make_random())
+        return cls(result)
+
+    @classmethod
+    def __instantiable_classes(cls):
+        return [ConvNode]
