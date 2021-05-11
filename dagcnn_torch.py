@@ -58,18 +58,33 @@ class ConvBlock(nn.Module):
     def forward(self, input):
         return self.net(input)
 
+class Gene(AutoRepr):
+    def __init__(self, node, predecessor_indices):
+        assert(node.arity() == len(predecessor_indices))
+        self.node = node
+        self.predecessor_indices = predecessor_indices
+
 class Genome(AutoRepr):
-    def __init__(self, genes):
+    def __init__(self, input_feature_depth, genes):
+        self.input_feature_depth = input_feature_depth
         self.genes = genes
 
     @classmethod
-    def make_random(cls, min_length, max_length):
+    def make_random(cls, input_feature_depth, min_length, max_length):
         length = randint(min_length, max_length)
-        result = []
-        for _ in range(length):
+        genes = []
+        for index in range(length):
             node_class = choice(cls.__instantiable_classes())
-            result.append(node_class.make_random())
-        return cls(result)
+            node = node_class.make_random()
+
+            predecessor_indices = []
+            for _ in range(node.arity()):
+                predecessor_indices.append(randint(-1, index - 1))
+
+            gene = Gene(node, predecessor_indices)
+            genes.append(gene)
+
+        return cls(input_feature_depth, genes)
 
     @classmethod
     def __instantiable_classes(cls):
