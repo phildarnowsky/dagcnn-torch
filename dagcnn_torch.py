@@ -30,9 +30,10 @@ class Node(AutoRepr):
         raise NotImplementedError
 
 class Block(nn.Module):
-    def __init__(self, predecessor_indices):
+    def __init__(self, predecessor_indices, output_feature_depth):
         super().__init__()
         self.predecessor_indices = predecessor_indices
+        self.output_feature_depth = output_feature_depth
 
     def forward(self, _):
         raise NotImplementedError
@@ -58,7 +59,7 @@ class ConvNode(Node):
 
 class ConvBlock(Block):
     def __init__(self, predecessor_indices, input_feature_depth, output_feature_depth, kernel_size):
-        super().__init__(predecessor_indices)
+        super().__init__(predecessor_indices, output_feature_depth)
         padding = kernel_size // 2
         conv_layer = nn.Conv2d(input_feature_depth, output_feature_depth, kernel_size, padding=padding)
         relu_layer = nn.ReLU()
@@ -75,8 +76,9 @@ class Gene(AutoRepr):
         self.predecessor_indices = predecessor_indices
 
 class Genome(AutoRepr):
-    def __init__(self, input_feature_depth, genes):
+    def __init__(self, input_feature_depth, output_feature_depth, genes):
         self.input_feature_depth = input_feature_depth
+        self.output_feature_depth = output_feature_depth
         self.genes = genes
 
     def to_individual(self):
@@ -88,7 +90,7 @@ class Genome(AutoRepr):
             block = gene.node.to_block(gene.predecessor_indices, input_feature_depth)
             blocks.append(block)
             output_indices = output_indices.difference(set(gene.predecessor_indices))
-        return Individual(blocks, output_indices)
+        return Individual(blocks, output_indices, self.output_feature_depth)
 
     def __input_feature_depth(self, gene):
         input_feature_depths = []
@@ -100,9 +102,7 @@ class Genome(AutoRepr):
         return max(input_feature_depths)
 
     @classmethod
-    def make_random(cls, input_feature_depth, min_length, max_length):
-        assert(min_length > 0)
-        assert(max_length >= min_length)
+    def make_random(cls, input_feature_depth, output_feature_depth, min_length, max_length):
         length = randint(min_length, max_length)
         genes = []
         for index in range(length):
@@ -116,17 +116,20 @@ class Genome(AutoRepr):
             gene = Gene(node, predecessor_indices)
             genes.append(gene)
 
-        return cls(input_feature_depth, genes)
+        return cls(input_feature_depth, output_feature_depth, genes)
 
     @classmethod
     def __instantiable_classes(cls):
         return [ConvNode]
 
 class Individual(nn.Module, AutoRepr):
-    def __init__(self, blocks, output_indices):
+    def __init__(self, blocks, output_indices, output_feature_depth, final_layer = nn.Identity()):
         super().__init__()
         self.blocks = blocks
         self.output_indices = list(output_indices)
+        self.output_feature_depth = output_feature_depth
+        self.final_layer = final_layer
+        self.tail = None
 
     def forward(self, model_input):
         results = []
@@ -139,6 +142,10 @@ class Individual(nn.Module, AutoRepr):
         output = torch.zeros_like(output_results[0])
         for output_result in output_results:
             output += output_result
+        output = torch.flatten(output, 1)
+        if self.tail == None:
+            self.__make_tail(output.size(1))
+        output = self.tail(output)
         return output
 
     def __get_block_inputs(self, model_input, results, block):
@@ -163,3 +170,7 @@ class Individual(nn.Module, AutoRepr):
             padded_tensor = functional.pad(tensor, padding)
             result.append(padded_tensor)
         return result
+
+    def __make_tail(self, input_feature_depth):
+        fc_layer = nn.Linear(input_feature_depth, self.output_feature_depth)
+        self.tail = nn.Sequential(fc_layer, self.final_layer)
