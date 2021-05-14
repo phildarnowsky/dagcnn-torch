@@ -116,21 +116,10 @@ class Genome(AutoRepr):
         output_indices = set(range(len(self.genes)))
 
         for gene in self.genes:
-#           input_feature_depth = self.__input_feature_depth(gene)
-#           block = gene.node.to_block(gene.predecessor_indices, input_feature_depth)
             block = gene.to_block(self.input_feature_depth, blocks)
             blocks.append(block)
             output_indices = output_indices.difference(set(gene.predecessor_indices))
         return Individual(blocks, output_indices, self.output_feature_depth)
-
-#   def __input_feature_depth(self, gene):
-#       input_feature_depths = []
-#       for predecessor_index in gene.predecessor_indices:
-#           if predecessor_index == -1:
-#               input_feature_depths.append(self.input_feature_depth)
-#           else:
-#               input_feature_depths.append(self.genes[predecessor_index].node.output_feature_depth())
-#       return max(input_feature_depths)
 
     @classmethod
     def make_random(cls, input_feature_depth, output_feature_depth, min_length, max_length):
@@ -191,15 +180,25 @@ class Individual(nn.Module, AutoRepr):
     def __match_shapes(self, tensors):
         feature_depths = map(lambda tensor: tensor.size(1), tensors)
         heights = map(lambda tensor: tensor.size(2), tensors)
+        widths = map(lambda tensor: tensor.size(3), tensors)
         max_feature_depth = max(feature_depths)
         max_height = max(heights)
+        max_width = max(widths)
         result = []
         for tensor in tensors:
             channel_difference = max_feature_depth - tensor.size(1)
             channel_padding_front = channel_difference // 2
             channel_padding_back = channel_difference - channel_padding_front
-            height_and_width_padding = (max_height - tensor.size(2)) // 2
-            padding = (height_and_width_padding, height_and_width_padding, height_and_width_padding, height_and_width_padding, channel_padding_front, channel_padding_back)
+            
+            height_difference = max_height - tensor.size(2)
+            height_padding_top = height_difference // 2
+            height_padding_bottom = height_difference - height_padding_top
+            
+            width_difference = max_width - tensor.size(3)
+            width_padding_left = width_difference // 2
+            width_padding_right = width_difference - width_padding_left
+
+            padding = (width_padding_left, width_padding_right, height_padding_top, height_padding_bottom, channel_padding_front, channel_padding_back)
             padded_tensor = functional.pad(tensor, padding)
             result.append(padded_tensor)
         return result
