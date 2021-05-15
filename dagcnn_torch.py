@@ -140,7 +140,7 @@ class Genome(AutoRepr):
 
     @classmethod
     def __instantiable_classes(cls):
-        return [ConvNode, AvgPoolNode]
+        return [ConvNode]
 
 class Individual(nn.Module, AutoRepr):
     def __init__(self, blocks, output_indices, output_feature_depth, final_layer = nn.Identity()):
@@ -208,8 +208,8 @@ class Individual(nn.Module, AutoRepr):
         self.tail = nn.Sequential(fc_layer, self.final_layer).cuda()
 
 if __name__ == "__main__":
-    data = torch.randn(10, 1, 320, 320).cuda()
-    genome = Genome.make_random(1, 14, 3, 3)
+    data = torch.randn(1, 1, 320, 320).cuda()
+    genome = Genome.make_random(1, 14, 13, 13)
     individual = genome.to_individual()
     print(genome)
     print(individual)
