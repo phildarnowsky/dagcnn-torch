@@ -145,7 +145,7 @@ class Genome(AutoRepr):
 class Individual(nn.Module, AutoRepr):
     def __init__(self, blocks, output_indices, output_feature_depth, final_layer = nn.Identity()):
         super().__init__()
-        self.blocks = blocks
+        self.blocks = nn.ModuleList(blocks)
         self.output_indices = list(output_indices)
         self.output_feature_depth = output_feature_depth
         self.final_layer = final_layer
@@ -206,3 +206,11 @@ class Individual(nn.Module, AutoRepr):
     def __make_tail(self, input_feature_depth):
         fc_layer = nn.Linear(input_feature_depth, self.output_feature_depth).cuda()
         self.tail = nn.Sequential(fc_layer, self.final_layer).cuda()
+
+if __name__ == "__main__":
+    data = torch.randn(10, 1, 320, 320).cuda()
+    genome = Genome.make_random(1, 14, 3, 3)
+    individual = genome.to_individual()
+    print(genome)
+    print(individual)
+    print(individual(data))
