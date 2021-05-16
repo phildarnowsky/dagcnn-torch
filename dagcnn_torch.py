@@ -107,6 +107,26 @@ class CatBlock(Block):
     def forward(self, input1, input2):
         [padded_input1, padded_input2] = match_shapes([input1, input2], match_channels=False)
         return torch.cat((padded_input1, padded_input2), 1)
+
+class SumNode(Node):
+    def to_block(self, input_indices):
+        return SumBlock(input_indices)
+
+    def output_feature_depth(self, input_feature_depths):
+        return max(input_feature_depths)
+
+    @classmethod
+    def arity(cls):
+        return 2
+
+    @classmethod
+    def make_random(cls, input_feature_depths):
+        return cls(input_feature_depths)
+
+class SumBlock(Block):
+    def forward(self, input1, input2):
+        [padded_input1, padded_input2] = match_shapes([input1, input2])
+        return padded_input1 + padded_input2
         
 class Gene(AutoRepr):
     def __init__(self, node, input_indices, input_feature_depths):
@@ -162,7 +182,7 @@ class Genome(AutoRepr):
 
     @classmethod
     def __instantiable_classes(cls):
-        return [ConvNode, AvgPoolNode, CatNode]
+        return [ConvNode, AvgPoolNode, CatNode, SumNode]
 
 class Individual(nn.Module, AutoRepr):
     def __init__(self, blocks, output_indices, output_feature_depth, final_layer = nn.Identity()):
