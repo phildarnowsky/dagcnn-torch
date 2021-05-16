@@ -3,11 +3,6 @@ from random import choice, randint
 import torch
 from torch import nn
 from torch.nn import functional
-#   SEP3 = auto()
-#   SEP5 = auto()
-#   POOL = auto()
-#   SUM = auto()
-#   STACK = auto()
 
 class AutoRepr():
     def __repr__(self):
@@ -46,8 +41,8 @@ class ConvNode(Node):
         self.__output_feature_depth = output_feature_depth
         self.kernel_size = kernel_size
 
-    def to_block(self, predecessor_indices, input_feature_depth):
-        return ConvBlock(predecessor_indices, input_feature_depth, self.output_feature_depth(), self.kernel_size)
+    def to_block(self, predecessor_indices, input_feature_depths):
+        return ConvBlock(predecessor_indices, max(input_feature_depths), self.output_feature_depth(), self.kernel_size)
 
     def output_feature_depth(self):
         return self.__output_feature_depth
@@ -59,8 +54,8 @@ class ConvNode(Node):
     @classmethod
     def make_random(cls):
         kernel_size = choice([1, 3])
-        feature_depth = choice([32, 64, 128, 256])
-        return cls(feature_depth, kernel_size)
+        output_feature_depth = choice([32, 64, 128, 256])
+        return cls(output_feature_depth, kernel_size)
 
 class ConvBlock(Block):
     def __init__(self, predecessor_indices, input_feature_depth, output_feature_depth, kernel_size):
@@ -72,8 +67,8 @@ class ConvBlock(Block):
         self.net = nn.Sequential(conv_layer, relu_layer, batch_norm_layer).cuda()
 
 class AvgPoolNode(Node):
-    def to_block(self, predecessor_indices, input_feature_depth):
-        return AvgPoolBlock(predecessor_indices, input_feature_depth)
+    def to_block(self, predecessor_indices, input_feature_depths):
+        return AvgPoolBlock(predecessor_indices, input_feature_depths)
 
     @classmethod
     def arity(cls):
@@ -84,7 +79,8 @@ class AvgPoolNode(Node):
         return cls()
 
 class AvgPoolBlock(Block):
-    def __init__(self, predecessor_indices, output_feature_depth):
+    def __init__(self, predecessor_indices, input_feature_depths):
+        output_feature_depth = max(input_feature_depths)
         super().__init__(predecessor_indices, output_feature_depth)
         self.net = nn.AvgPool2d(2, 2).cuda()
 
@@ -101,8 +97,7 @@ class Gene(AutoRepr):
                 input_feature_depths.append(model_input_feature_depth)
             else:
                 input_feature_depths.append(blocks[predecessor_index].output_feature_depth)
-        input_feature_depth = max(input_feature_depths)
-        return self.node.to_block(self.predecessor_indices, input_feature_depth)
+        return self.node.to_block(self.predecessor_indices, input_feature_depths)
 
 
 class Genome(AutoRepr):
@@ -140,7 +135,7 @@ class Genome(AutoRepr):
 
     @classmethod
     def __instantiable_classes(cls):
-        return [ConvNode]
+        return [ConvNode, AvgPoolNode]
 
 class Individual(nn.Module, AutoRepr):
     def __init__(self, blocks, output_indices, output_feature_depth, final_layer = nn.Identity()):
@@ -177,7 +172,7 @@ class Individual(nn.Module, AutoRepr):
                 inputs.append(results[predecessor_index])
         return inputs
 
-    def __match_shapes(self, tensors):
+    def __match_shapes(self, tensors, match_channels=True):
         feature_depths = map(lambda tensor: tensor.size(1), tensors)
         heights = map(lambda tensor: tensor.size(2), tensors)
         widths = map(lambda tensor: tensor.size(3), tensors)
@@ -186,7 +181,10 @@ class Individual(nn.Module, AutoRepr):
         max_width = max(widths)
         result = []
         for tensor in tensors:
-            channel_difference = max_feature_depth - tensor.size(1)
+            if match_channels:
+                channel_difference = max_feature_depth - tensor.size(1)
+            else:
+                channel_difference = 0
             channel_padding_front = channel_difference // 2
             channel_padding_back = channel_difference - channel_padding_front
             
