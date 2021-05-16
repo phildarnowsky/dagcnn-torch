@@ -11,10 +11,13 @@ class AutoRepr():
         return f"<{name} {attributes}>"
 
 class Node(AutoRepr):
+    def __init__(self, input_feature_depths):
+        self.input_feature_depths = input_feature_depths
+
     def to_block(self):
         raise NotImplementedError
 
-    def output_feature_depth(self):
+    def output_feature_depth(self, _):
         raise NotImplementedError
 
     @classmethod
@@ -36,15 +39,15 @@ class Block(nn.Module):
         return self.net(input)
 
 class ConvNode(Node):
-    def __init__(self, output_feature_depth, kernel_size):
-        super().__init__()
+    def __init__(self, input_feature_depths, output_feature_depth, kernel_size):
+        super().__init__(input_feature_depths)
         self.__output_feature_depth = output_feature_depth
         self.kernel_size = kernel_size
 
-    def to_block(self, input_indices, input_feature_depths):
-        return ConvBlock(input_indices, max(input_feature_depths), self.output_feature_depth(), self.kernel_size)
+    def to_block(self, input_indices):
+        return ConvBlock(input_indices, max(self.input_feature_depths), self.output_feature_depth(self.input_feature_depths), self.kernel_size)
 
-    def output_feature_depth(self):
+    def output_feature_depth(self, _):
         return self.__output_feature_depth
 
     @classmethod
@@ -52,10 +55,10 @@ class ConvNode(Node):
         return 1
 
     @classmethod
-    def make_random(cls):
+    def make_random(cls, input_feature_depths):
         kernel_size = choice([1, 3])
         output_feature_depth = choice([32, 64, 128, 256])
-        return cls(output_feature_depth, kernel_size)
+        return cls(input_feature_depths, output_feature_depth, kernel_size)
 
 class ConvBlock(Block):
     def __init__(self, input_indices, input_feature_depth, output_feature_depth, kernel_size):
@@ -67,16 +70,19 @@ class ConvBlock(Block):
         self.net = nn.Sequential(conv_layer, relu_layer, batch_norm_layer).cuda()
 
 class AvgPoolNode(Node):
-    def to_block(self, input_indices, input_feature_depths):
-        return AvgPoolBlock(input_indices, input_feature_depths)
+    def output_feature_depth(self, input_feature_depths):
+        return max(input_feature_depths)
+
+    def to_block(self, input_indices):
+        return AvgPoolBlock(input_indices, self.input_feature_depths)
 
     @classmethod
     def arity(cls):
         return 1
 
     @classmethod
-    def make_random(cls):
-        return cls()
+    def make_random(cls, input_feature_depths):
+        return cls(input_feature_depths)
 
 class AvgPoolBlock(Block):
     def __init__(self, input_indices, input_feature_depths):
@@ -85,19 +91,17 @@ class AvgPoolBlock(Block):
         self.net = nn.AvgPool2d(2, 2).cuda()
 
 class Gene(AutoRepr):
-    def __init__(self, node, input_indices):
+    def __init__(self, node, input_indices, input_feature_depths):
         assert(node.arity() == len(input_indices))
         self.node = node
         self.input_indices = input_indices
+        self.input_feature_depths = input_feature_depths
 
-    def to_block(self, model_input_feature_depth, blocks):
-        input_feature_depths = []
-        for input_index in self.input_indices:
-            if input_index == -1:
-                input_feature_depths.append(model_input_feature_depth)
-            else:
-                input_feature_depths.append(blocks[input_index].output_feature_depth)
-        return self.node.to_block(self.input_indices, input_feature_depths)
+    def output_feature_depth(self):
+        return self.node.output_feature_depth(self.input_feature_depths)
+
+    def to_block(self):
+        return self.node.to_block(self.input_indices)
 
 
 class Genome(AutoRepr):
@@ -111,7 +115,7 @@ class Genome(AutoRepr):
         output_indices = set(range(len(self.genes)))
 
         for gene in self.genes:
-            block = gene.to_block(self.input_feature_depth, blocks)
+            block = gene.to_block()
             blocks.append(block)
             output_indices = output_indices.difference(set(gene.input_indices))
         return Individual(blocks, output_indices, self.output_feature_depth)
@@ -122,13 +126,19 @@ class Genome(AutoRepr):
         genes = []
         for index in range(length):
             node_class = choice(cls.__instantiable_classes())
-            node = node_class.make_random()
-
             input_indices = []
-            for _ in range(node.arity()):
-                input_indices.append(randint(-1, index - 1))
+            input_feature_depths = []
+            for _ in range(node_class.arity()):
+                new_input_index = randint(-1, index - 1)
+                input_indices.append(new_input_index)
+                if new_input_index == -1:
+                    input_feature_depths.append(input_feature_depth)
+                else:
+                    input_feature_depths.append(genes[new_input_index].output_feature_depth())
 
-            gene = Gene(node, input_indices)
+            node = node_class.make_random(input_feature_depths)
+
+            gene = Gene(node, input_indices, input_feature_depths)
             genes.append(gene)
 
         return cls(input_feature_depth, output_feature_depth, genes)
