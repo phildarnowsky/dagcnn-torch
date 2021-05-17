@@ -120,6 +120,26 @@ class AvgPoolBlock(Block):
         super().__init__(input_indices)
         self.net = nn.AvgPool2d(2, 2).cuda()
 
+class MaxPoolNode(Node):
+    def output_feature_depth(self, input_feature_depths):
+        return max(input_feature_depths)
+
+    def to_block(self, input_indices):
+        return MaxPoolBlock(input_indices)
+
+    @classmethod
+    def arity(cls):
+        return 1
+
+    @classmethod
+    def make_random(cls, input_feature_depths):
+        return cls(input_feature_depths)
+
+class MaxPoolBlock(Block):
+    def __init__(self, input_indices):
+        super().__init__(input_indices)
+        self.net = nn.MaxPool2d(2, 2).cuda()
+
 class CatNode(Node):
     def to_block(self, input_indices):
         return CatBlock(input_indices)
@@ -214,7 +234,7 @@ class Genome(AutoRepr):
 
     @classmethod
     def __instantiable_classes(cls):
-        return [ConvNode, DepSepConvNode, AvgPoolNode, CatNode, SumNode]
+        return [ConvNode, DepSepConvNode, AvgPoolNode, MaxPoolNode, CatNode, SumNode]
 
 class Individual(nn.Module, AutoRepr):
     def __init__(self, blocks, output_indices, output_feature_depth, final_layer = nn.Identity()):
