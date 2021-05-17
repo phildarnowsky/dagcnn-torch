@@ -68,6 +68,38 @@ class ConvBlock(Block):
         batch_norm_layer = nn.BatchNorm2d(output_feature_depth)
         self.net = nn.Sequential(conv_layer, relu_layer, batch_norm_layer).cuda()
 
+class DepSepConvNode(Node):
+    def __init__(self, input_feature_depths, output_feature_depth, kernel_size):
+        super().__init__(input_feature_depths)
+        self.__output_feature_depth = output_feature_depth
+        self.kernel_size = kernel_size
+
+    def to_block(self, input_indices):
+        return DepSepConvBlock(input_indices, max(self.input_feature_depths), self.output_feature_depth(self.input_feature_depths), self.kernel_size)
+
+    def output_feature_depth(self, _):
+        return self.__output_feature_depth
+
+    @classmethod
+    def arity(cls):
+        return 1
+
+    @classmethod
+    def make_random(cls, input_feature_depths):
+        kernel_size = choice([3, 5])
+        output_feature_depth = choice([32, 64, 128, 256])
+        return cls(input_feature_depths, output_feature_depth, kernel_size)
+
+class DepSepConvBlock(Block):
+    def __init__(self, input_indices, input_feature_depth, output_feature_depth, kernel_size):
+        super().__init__(input_indices)
+        padding = kernel_size // 2
+        depthwise_layer = nn.Conv2d(input_feature_depth, input_feature_depth, kernel_size, groups=input_feature_depth, padding=padding)
+        pointwise_layer = nn.Conv2d(input_feature_depth, output_feature_depth, 1)
+        relu_layer = nn.ReLU()
+        batch_norm_layer = nn.BatchNorm2d(output_feature_depth)
+        self.net = nn.Sequential(depthwise_layer, pointwise_layer, relu_layer, batch_norm_layer).cuda()
+
 class AvgPoolNode(Node):
     def output_feature_depth(self, input_feature_depths):
         return max(input_feature_depths)
@@ -182,7 +214,7 @@ class Genome(AutoRepr):
 
     @classmethod
     def __instantiable_classes(cls):
-        return [ConvNode, AvgPoolNode, CatNode, SumNode]
+        return [ConvNode, DepSepConvNode, AvgPoolNode, CatNode, SumNode]
 
 class Individual(nn.Module, AutoRepr):
     def __init__(self, blocks, output_indices, output_feature_depth, final_layer = nn.Identity()):
