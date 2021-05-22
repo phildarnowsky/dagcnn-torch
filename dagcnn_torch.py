@@ -278,6 +278,7 @@ class Individual(nn.Module, AutoRepr):
 
     def __make_tail(self, input_feature_depth):
         fc_layer = nn.Linear(input_feature_depth, self.output_feature_depth).cuda()
+        kaiming_normal_(fc_layer.weight)
         self.tail = nn.Sequential(fc_layer, self.final_layer).cuda()
 
 def match_shapes(tensors, match_channels=True):
