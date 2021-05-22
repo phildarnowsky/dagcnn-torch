@@ -3,6 +3,7 @@ from random import choice, randint
 import torch
 from torch import nn
 from torch.nn import functional
+from torch.nn.init import kaiming_normal_
 
 class AutoRepr():
     def __repr__(self):
@@ -64,6 +65,7 @@ class ConvBlock(Block):
         super().__init__(input_indices)
         padding = kernel_size // 2
         conv_layer = nn.Conv2d(input_feature_depth, output_feature_depth, kernel_size, padding=padding)
+        kaiming_normal_(conv_layer.weight)
         relu_layer = nn.ReLU()
         batch_norm_layer = nn.BatchNorm2d(output_feature_depth)
         self.net = nn.Sequential(conv_layer, relu_layer, batch_norm_layer).cuda()
@@ -96,6 +98,8 @@ class DepSepConvBlock(Block):
         padding = kernel_size // 2
         depthwise_layer = nn.Conv2d(input_feature_depth, input_feature_depth, kernel_size, groups=input_feature_depth, padding=padding)
         pointwise_layer = nn.Conv2d(input_feature_depth, output_feature_depth, 1)
+        kaiming_normal_(depthwise_layer.weight)
+        kaiming_normal_(pointwise_layer.weight)
         relu_layer = nn.ReLU()
         batch_norm_layer = nn.BatchNorm2d(output_feature_depth)
         self.net = nn.Sequential(depthwise_layer, pointwise_layer, relu_layer, batch_norm_layer).cuda()
