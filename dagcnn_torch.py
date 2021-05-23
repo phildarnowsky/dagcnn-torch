@@ -260,9 +260,8 @@ class Individual(nn.Module, AutoRepr):
         output = torch.zeros_like(output_results[0])
         for output_result in output_results:
             output += output_result
-        output = torch.flatten(output, 1)
         if self.tail == None:
-            self.__make_tail(output.size(1))
+            self.__make_tail(output.size(1), output.size(2), output.size(3))
         output = self.tail(output)
         return output
 
@@ -275,10 +274,13 @@ class Individual(nn.Module, AutoRepr):
                 inputs.append(results[input_index])
         return inputs
 
-    def __make_tail(self, input_feature_depth):
+    def __make_tail(self, input_feature_depth, height, width):
+        gap_layer = nn.AvgPool2d(kernel_size=(height, width)).cuda()
+        flatten_layer = nn.Flatten()
         fc_layer = nn.Linear(input_feature_depth, self.output_feature_depth).cuda()
+        print(fc_layer.weight.shape)
         kaiming_normal_(fc_layer.weight)
-        self.tail = nn.Sequential(fc_layer, self.final_layer).cuda()
+        self.tail = nn.Sequential(gap_layer, flatten_layer, fc_layer, self.final_layer).cuda()
 
 def match_shapes(tensors, match_channels=True):
     feature_depths = map(lambda tensor: tensor.size(1), tensors)
@@ -334,6 +336,6 @@ if __name__ == "__main__":
         individual = genome.to_individual()
         for _, sample in enumerate(loader):
             individual(sample[0].cuda())
-            print(f"{n1}/{n2}")
+            # print(f"{n1}/{n2}")
             n2 += 1
         n1 += 1
