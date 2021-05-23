@@ -262,7 +262,6 @@ class Individual(nn.Module, AutoRepr):
             output += output_result
         output = torch.flatten(output, 1)
         if self.tail == None:
-            print(f"Attempting to make tail of size {output.size(1)}")
             self.__make_tail(output.size(1))
         output = self.tail(output)
         return output
@@ -310,10 +309,31 @@ def match_shapes(tensors, match_channels=True):
         result.append(padded_tensor)
     return result
 
+class Population():
+    def __init__(self, genomes):
+        self.genomes = genomes
+
+    @classmethod
+    def make_random(cls, n_genomes, n_inputs, n_outputs, minimum_length, maximum_length):
+        genomes = []
+        for _ in range(n_genomes):
+            genomes.append(Genome.make_random(n_inputs, n_outputs, minimum_length, maximum_length))
+        return cls(genomes)
+
 if __name__ == "__main__":
-    data = torch.randn(1, 1, 320, 320).cuda()
-    genome = Genome.make_random(1, 14, 13, 13)
-    individual = genome.to_individual()
-    print(genome)
-    print(individual)
-    print(individual(data))
+    data = torch.randn(20000, 1, 320, 320)
+    dataset = torch.utils.data.TensorDataset(data)
+    sampler = torch.utils.data.SequentialSampler(dataset)
+    loader = torch.utils.data.DataLoader(dataset, sampler=sampler, pin_memory=True)
+    population = Population.make_random(100, 1, 14, 1, 10)
+    n1 = 0
+    for genome in population.genomes:
+        print(f"GENOME {n1}")
+        print(genome)
+        n2 = 0
+        individual = genome.to_individual()
+        for _, sample in enumerate(loader):
+            individual(sample[0].cuda())
+            print(f"{n1}/{n2}")
+            n2 += 1
+        n1 += 1
