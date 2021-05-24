@@ -1,3 +1,4 @@
+from itertools import chain
 from random import choice, randint
 
 import torch
@@ -198,8 +199,8 @@ class Gene(AutoRepr):
         return self.node.to_block(self.input_indices)
 
 class Genome(AutoRepr):
-    def __init__(self, input_feature_depth, output_feature_depth, genes):
-        self.input_feature_depth = input_feature_depth
+    def __init__(self, input_shape, output_feature_depth, genes):
+        self.input_shape = input_shape
         self.output_feature_depth = output_feature_depth
         self.genes = genes
 
@@ -211,10 +212,10 @@ class Genome(AutoRepr):
             block = gene.to_block()
             blocks.append(block)
             output_indices = output_indices.difference(set(gene.input_indices))
-        return Individual(blocks, output_indices, self.output_feature_depth)
+        return Individual(blocks, self.input_shape, output_indices, self.output_feature_depth)
 
     @classmethod
-    def make_random(cls, input_feature_depth, output_feature_depth, min_length, max_length):
+    def make_random(cls, input_shape, output_feature_depth, min_length, max_length):
         length = randint(min_length, max_length)
         genes = []
         for index in range(length):
@@ -225,7 +226,7 @@ class Genome(AutoRepr):
                 new_input_index = randint(-1, index - 1)
                 input_indices.append(new_input_index)
                 if new_input_index == -1:
-                    input_feature_depths.append(input_feature_depth)
+                    input_feature_depths.append(input_shape[0])
                 else:
                     input_feature_depths.append(genes[new_input_index].output_feature_depth())
 
@@ -234,36 +235,32 @@ class Genome(AutoRepr):
             gene = Gene(node, input_indices, input_feature_depths)
             genes.append(gene)
 
-        return cls(input_feature_depth, output_feature_depth, genes)
+        return cls(input_shape, output_feature_depth, genes)
 
     @classmethod
     def __instantiable_classes(cls):
-        return [ConvNode, DepSepConvNode, AvgPoolNode, MaxPoolNode, CatNode, SumNode]
+        #return [ConvNode, DepSepConvNode, AvgPoolNode, MaxPoolNode, CatNode, SumNode]
+        return [AvgPoolNode, MaxPoolNode, CatNode, SumNode]
 
 class Individual(nn.Module, AutoRepr):
-    def __init__(self, blocks, output_indices, output_feature_depth, final_layer = nn.Identity()):
+    def __init__(self, blocks, input_shape, output_indices, output_feature_depth, final_layer = nn.Identity()):
         super().__init__()
         self.blocks = nn.ModuleList(blocks)
         self.output_indices = list(output_indices)
         self.output_feature_depth = output_feature_depth
-        self.final_layer = final_layer
-        self.tail = None
+        self.tail = self.__make_tail(input_shape, final_layer)
 
     def forward(self, model_input):
-        results = []
-        for block in self.blocks:
-            inputs = self.__get_block_inputs(model_input, results, block)
-            result = block(*inputs)
-            results.append(result)
-        output_results = list(map(lambda output_index: results[output_index], self.output_indices))
+        output_results = self.__calculate_output_results(model_input)
         output_results = match_shapes(output_results)
         output = torch.zeros_like(output_results[0])
         for output_result in output_results:
             output += output_result
-        if self.tail == None:
-            self.__make_tail(output.size(1), output.size(2), output.size(3))
         output = self.tail(output)
         return output
+
+    def parameters(self):
+        return chain(self.blocks.parameters(), self.tail.parameters())
 
     def __get_block_inputs(self, model_input, results, block):
         inputs = []
@@ -274,21 +271,36 @@ class Individual(nn.Module, AutoRepr):
                 inputs.append(results[input_index])
         return inputs
 
-    def __make_tail(self, input_feature_depth, height, width):
+    def __make_tail(self, input_shape, final_layer):
+        dummy_input = torch.zeros(1, *input_shape).cuda()
+        dummy_output_results = self.__calculate_output_results(dummy_input)
+        output_shape = largest_dimensions(dummy_output_results)
+        (input_feature_depth, height, width) = output_shape
         gap_layer = nn.AvgPool2d(kernel_size=(height, width)).cuda()
         flatten_layer = nn.Flatten()
         fc_layer = nn.Linear(input_feature_depth, self.output_feature_depth).cuda()
-        print(fc_layer.weight.shape)
         kaiming_normal_(fc_layer.weight)
-        self.tail = nn.Sequential(gap_layer, flatten_layer, fc_layer, self.final_layer).cuda()
+        return nn.Sequential(gap_layer, flatten_layer, fc_layer, final_layer).cuda()
 
-def match_shapes(tensors, match_channels=True):
+    def __calculate_output_results(self, model_input):
+        results = []
+        for block in self.blocks:
+            inputs = self.__get_block_inputs(model_input, results, block)
+            result = block(*inputs)
+            results.append(result)
+        return list(map(lambda output_index: results[output_index], self.output_indices))
+
+def largest_dimensions(tensors):
     feature_depths = map(lambda tensor: tensor.size(1), tensors)
     heights = map(lambda tensor: tensor.size(2), tensors)
     widths = map(lambda tensor: tensor.size(3), tensors)
     max_feature_depth = max(feature_depths)
     max_height = max(heights)
     max_width = max(widths)
+    return(max_feature_depth, max_height, max_width)
+
+def match_shapes(tensors, match_channels=True):
+    (max_feature_depth, max_height, max_width) = largest_dimensions(tensors)
     result = []
     for tensor in tensors:
         if match_channels:
@@ -316,26 +328,33 @@ class Population():
         self.genomes = genomes
 
     @classmethod
-    def make_random(cls, n_genomes, n_inputs, n_outputs, minimum_length, maximum_length):
+    def make_random(cls, n_genomes, input_shape, n_outputs, minimum_length, maximum_length):
         genomes = []
         for _ in range(n_genomes):
-            genomes.append(Genome.make_random(n_inputs, n_outputs, minimum_length, maximum_length))
+            genomes.append(Genome.make_random(input_shape, n_outputs, minimum_length, maximum_length))
         return cls(genomes)
 
 if __name__ == "__main__":
-    data = torch.randn(20000, 1, 320, 320)
+    data = torch.randn(1000, 3, 32, 32)
+    labels = torch.randint(0, 9, (1000, 1)).cuda()
     dataset = torch.utils.data.TensorDataset(data)
     sampler = torch.utils.data.SequentialSampler(dataset)
     loader = torch.utils.data.DataLoader(dataset, sampler=sampler, pin_memory=True)
-    population = Population.make_random(100, 1, 14, 1, 10)
-    n1 = 0
+    population = Population.make_random(100, (3, 32, 32), 10, 1, 10)
+    genome_index = 0
     for genome in population.genomes:
-        print(f"GENOME {n1}")
-        print(genome)
-        n2 = 0
+        criterion = nn.CrossEntropyLoss()
+        print(f"GENOME {genome_index}")
         individual = genome.to_individual()
-        for _, sample in enumerate(loader):
-            individual(sample[0].cuda())
-            # print(f"{n1}/{n2}")
-            n2 += 1
-        n1 += 1
+        optimizer = torch.optim.Adam(individual.parameters())
+        for epoch_index in range(20):
+            print(f"{genome_index}/{epoch_index}")
+            for element_index, [image] in enumerate(loader):
+                prediction = individual(image.cuda())
+                label = labels[element_index]
+                loss = criterion(prediction, label)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            print(loss.item())
+        genome_index += 1
