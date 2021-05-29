@@ -336,8 +336,10 @@ class Population():
         return cls(genomes)
 
 if __name__ == "__main__":
-    data = torch.randn(4500, 3, 32, 32)
-    labels = torch.randint(0, 9, (50000, 1)).cuda()
+    data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
+    labels = torch.load("./datasets/cifar-10/raw/all_training_labels.pt").cuda()
+    data = data[0:4500]
+    labels = labels[0:4500]
     dataset = torch.utils.data.TensorDataset(data)
     sampler = torch.utils.data.SequentialSampler(dataset)
     loader = torch.utils.data.DataLoader(dataset, sampler=sampler, pin_memory=True)
