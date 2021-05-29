@@ -1,1 +1,2 @@
 datasets/**/*.pt
+!datasets/cifar-10/processed/*.pt
