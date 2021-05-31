@@ -14,13 +14,13 @@ class AutoRepr():
         return f"<{name} {attributes}>"
 
 class Node(AutoRepr):
-    def __init__(self, input_feature_depths):
-        self.input_feature_depths = input_feature_depths
+    def __init__(self, input_shapes):
+        self.input_shapes = input_shapes
 
     def to_block(self, _):
         raise NotImplementedError
 
-    def output_feature_depth(self, _):
+    def output_shape(self, _):
         raise NotImplementedError
 
     @classmethod
@@ -41,26 +41,27 @@ class Block(nn.Module):
         return self.net(input)
 
 class ConvNode(Node):
-    def __init__(self, input_feature_depths, output_feature_depth, kernel_size):
-        super().__init__(input_feature_depths)
+    def __init__(self, input_shapes, output_feature_depth, kernel_size):
+        super().__init__(input_shapes)
+        self.__input_shape = self.input_shapes[0]
         self.__output_feature_depth = output_feature_depth
         self.kernel_size = kernel_size
 
     def to_block(self, input_indices):
-        return ConvBlock(input_indices, max(self.input_feature_depths), self.output_feature_depth(self.input_feature_depths), self.kernel_size)
+        return ConvBlock(input_indices, self.__input_shape[0], self.__output_feature_depth, self.kernel_size)
 
-    def output_feature_depth(self, _):
-        return self.__output_feature_depth
+    def output_shape(self, _):
+        return (self.__output_feature_depth, self.__input_shape[1], self.__input_shape[2]) 
 
     @classmethod
     def arity(cls):
         return 1
 
     @classmethod
-    def make_random(cls, input_feature_depths):
+    def make_random(cls, input_shapes):
         kernel_size = choice([1, 3])
         output_feature_depth = choice([32, 64, 128, 256])
-        return cls(input_feature_depths, output_feature_depth, kernel_size)
+        return cls(input_shapes, output_feature_depth, kernel_size)
 
 class ConvBlock(Block):
     def __init__(self, input_indices, input_feature_depth, output_feature_depth, kernel_size):
@@ -75,24 +76,25 @@ class ConvBlock(Block):
 class DepSepConvNode(Node):
     def __init__(self, input_feature_depths, output_feature_depth, kernel_size):
         super().__init__(input_feature_depths)
+        self.__input_shape = self.input_shapes[0]
         self.__output_feature_depth = output_feature_depth
         self.kernel_size = kernel_size
 
     def to_block(self, input_indices):
-        return DepSepConvBlock(input_indices, max(self.input_feature_depths), self.output_feature_depth(self.input_feature_depths), self.kernel_size)
+        return DepSepConvBlock(input_indices, self.__input_shape[0], self.__output_feature_depth, self.kernel_size)
 
-    def output_feature_depth(self, _):
-        return self.__output_feature_depth
+    def output_shape(self, _):
+        return (self.__output_feature_depth, self.__input_shape[1], self.__input_shape[2]) 
 
     @classmethod
     def arity(cls):
         return 1
 
     @classmethod
-    def make_random(cls, input_feature_depths):
+    def make_random(cls, input_shapes):
         kernel_size = choice([3, 5])
         output_feature_depth = choice([32, 64, 128, 256])
-        return cls(input_feature_depths, output_feature_depth, kernel_size)
+        return cls(input_shapes, output_feature_depth, kernel_size)
 
 class DepSepConvBlock(Block):
     def __init__(self, input_indices, input_feature_depth, output_feature_depth, kernel_size):
@@ -106,52 +108,67 @@ class DepSepConvBlock(Block):
         batch_norm_layer = nn.BatchNorm2d(output_feature_depth)
         self.net = nn.Sequential(depthwise_layer, pointwise_layer, relu_layer, batch_norm_layer).cuda()
 
-class AvgPoolNode(Node):
-    def output_feature_depth(self, input_feature_depths):
-        return max(input_feature_depths)
+class PoolNode(Node):
+    def is_too_small(self, shape):
+        return shape[1] < 2 or shape[2] < 2
+
+    def output_shape(self, input_shapes):
+        input_shape = input_shapes[0]
+        if self.is_too_small(input_shape):
+            return input_shape
+        else:
+            return input_shape[0], input_shape[1] // 2, input_shape[2] // 2
 
     def to_block(self, input_indices):
-        return AvgPoolBlock(input_indices)
+        return self.block_class()(input_indices, self.is_too_small(self.input_shapes[0]))
+
+    def block_class(self):
+        raise NotImplementedError
 
     @classmethod
     def arity(cls):
         return 1
 
     @classmethod
-    def make_random(cls, input_feature_depths):
-        return cls(input_feature_depths)
+    def make_random(cls, input_shapes):
+        return cls(input_shapes)
 
-class AvgPoolBlock(Block):
-    def __init__(self, input_indices):
+class PoolBlock(Block):
+    def __init__(self, input_indices, is_too_small):
         super().__init__(input_indices)
-        self.net = nn.AvgPool2d(2, 2).cuda()
+        if is_too_small:
+            self.net = nn.Identity().cuda()
+        else:
+            self.net = self.layer_class()(2, 2).cuda()
 
-class MaxPoolNode(Node):
-    def output_feature_depth(self, input_feature_depths):
-        return max(input_feature_depths)
+    def layer_class(self):
+        raise NotImplementedError
 
-    def to_block(self, input_indices):
-        return MaxPoolBlock(input_indices)
+class AvgPoolNode(PoolNode):
+    def block_class(self):
+        return AvgPoolBlock
 
-    @classmethod
-    def arity(cls):
-        return 1
+class AvgPoolBlock(PoolBlock):
+    def layer_class(self):
+        return nn.AvgPool2d
 
-    @classmethod
-    def make_random(cls, input_feature_depths):
-        return cls(input_feature_depths)
+class MaxPoolNode(PoolNode):
+    def block_class(self):
+        return MaxPoolBlock
 
-class MaxPoolBlock(Block):
-    def __init__(self, input_indices):
-        super().__init__(input_indices)
-        self.net = nn.MaxPool2d(2, 2).cuda()
+class MaxPoolBlock(PoolBlock):
+    def layer_class(self):
+        return nn.MaxPool2d
 
 class CatNode(Node):
     def to_block(self, input_indices):
         return CatBlock(input_indices)
 
-    def output_feature_depth(self, input_feature_depths):
-        return sum(input_feature_depths)
+    def output_shape(self, input_shapes):
+        output_feature_depth = sum(map(lambda t: t[0], input_shapes))
+        output_height = max(map(lambda t: t[0], input_shapes))
+        output_width = max(map(lambda t: t[0], input_shapes))
+        return (output_feature_depth, output_height, output_width)
 
     @classmethod
     def arity(cls):
@@ -170,8 +187,11 @@ class SumNode(Node):
     def to_block(self, input_indices):
         return SumBlock(input_indices)
 
-    def output_feature_depth(self, input_feature_depths):
-        return max(input_feature_depths)
+    def output_shape(self, input_shapes):
+        output_feature_depth = max(map(lambda t: t[0], input_shapes))
+        output_height = max(map(lambda t: t[0], input_shapes))
+        output_width = max(map(lambda t: t[0], input_shapes))
+        return (output_feature_depth, output_height, output_width)
 
     @classmethod
     def arity(cls):
@@ -187,14 +207,14 @@ class SumBlock(Block):
         return padded_input1 + padded_input2
         
 class Gene(AutoRepr):
-    def __init__(self, node, input_indices, input_feature_depths):
+    def __init__(self, node, input_indices, input_shapes):
         assert(node.arity() == len(input_indices))
         self.node = node
         self.input_indices = input_indices
-        self.input_feature_depths = input_feature_depths
+        self.input_shapes = input_shapes
 
-    def output_feature_depth(self):
-        return self.node.output_feature_depth(self.input_feature_depths)
+    def output_shape(self):
+        return self.node.output_shape(self.input_shapes)
 
     def to_block(self):
         return self.node.to_block(self.input_indices)
@@ -216,33 +236,32 @@ class Genome(AutoRepr):
         return Individual(blocks, self.input_shape, output_indices, self.output_feature_depth)
 
     @classmethod
-    def make_random(cls, input_shape, output_feature_depth, min_length, max_length):
+    def make_random(cls, model_input_shape, model_output_feature_depth, min_length, max_length):
         length = randint(min_length, max_length)
         genes = []
         for index in range(length):
             node_class = choice(cls.__instantiable_classes())
             input_indices = []
-            input_feature_depths = []
+            input_feature_shapes = []
             for _ in range(node_class.arity()):
                 new_input_index = randint(-1, index - 1)
                 input_indices.append(new_input_index)
                 if new_input_index == -1:
-                    input_feature_depths.append(input_shape[0])
+                    input_feature_shapes.append(model_input_shape)
                 else:
-                    input_feature_depths.append(genes[new_input_index].output_feature_depth())
+                    input_feature_shapes.append(genes[new_input_index].output_shape())
 
-            node = node_class.make_random(input_feature_depths)
+            node = node_class.make_random(input_feature_shapes)
 
-            gene = Gene(node, input_indices, input_feature_depths)
+            gene = Gene(node, input_indices, input_feature_shapes)
             genes.append(gene)
 
-        return cls(input_shape, output_feature_depth, genes)
+        return cls(model_input_shape, model_output_feature_depth, genes)
 
     @classmethod
     def __instantiable_classes(cls):
-        #return [ConvNode, DepSepConvNode, AvgPoolNode, MaxPoolNode, CatNode, SumNode]
-        #return [AvgPoolNode, MaxPoolNode, CatNode, SumNode]
-        return [AvgPoolNode, MaxPoolNode]
+        return [ConvNode, DepSepConvNode, AvgPoolNode, MaxPoolNode, CatNode, SumNode]
+        #return [SumNode]
 
 class Individual(nn.Module, AutoRepr):
     def __init__(self, blocks, input_shape, output_indices, output_feature_depth, final_layer = nn.Identity()):
@@ -340,28 +359,34 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
     from torch.optim import Adam
 
+    evolution_set_size = 2
+    n_epochs = 2
+
     data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
     labels = torch.load("./datasets/cifar-10/raw/all_training_labels.pt").cuda()
-    data = data[0:4500]
-    labels = labels[0:4500]
+    data = data[0:evolution_set_size]
+    labels = labels[0:evolution_set_size]
     dataset = TensorDataset(data)
     sampler = SequentialSampler(dataset)
     loader = DataLoader(dataset, sampler=sampler, pin_memory=True)
     population = Population.make_random(1, (3, 32, 32), 10, 100, 100)
     genome_index = 0
     for genome in population.genomes:
-        print(genome)
         criterion = nn.CrossEntropyLoss()
         print(f"GENOME {genome_index}")
         individual = genome.to_individual()
         optimizer = Adam(individual.parameters())
-        for epoch_index in range(100):
+        for epoch_index in range(n_epochs):
             print(f"[{datetime.now()}] {genome_index}/{epoch_index}")
+            losses = []
             for element_index, [image] in enumerate(loader):
                 prediction = individual(image.cuda())
                 label = labels[element_index]
                 loss = criterion(prediction, label)
+                losses.append(loss.item())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+            average_loss = sum(losses) / len(losses)
+            print(average_loss)
         genome_index += 1
