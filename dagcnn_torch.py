@@ -241,7 +241,8 @@ class Genome(AutoRepr):
     @classmethod
     def __instantiable_classes(cls):
         #return [ConvNode, DepSepConvNode, AvgPoolNode, MaxPoolNode, CatNode, SumNode]
-        return [AvgPoolNode, MaxPoolNode, CatNode, SumNode]
+        #return [AvgPoolNode, MaxPoolNode, CatNode, SumNode]
+        return [AvgPoolNode, MaxPoolNode]
 
 class Individual(nn.Module, AutoRepr):
     def __init__(self, blocks, input_shape, output_indices, output_feature_depth, final_layer = nn.Identity()):
@@ -346,9 +347,10 @@ if __name__ == "__main__":
     dataset = TensorDataset(data)
     sampler = SequentialSampler(dataset)
     loader = DataLoader(dataset, sampler=sampler, pin_memory=True)
-    population = Population.make_random(1, (3, 32, 32), 10, 1, 10)
+    population = Population.make_random(1, (3, 32, 32), 10, 100, 100)
     genome_index = 0
     for genome in population.genomes:
+        print(genome)
         criterion = nn.CrossEntropyLoss()
         print(f"GENOME {genome_index}")
         individual = genome.to_individual()
