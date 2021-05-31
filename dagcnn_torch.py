@@ -336,20 +336,23 @@ class Population():
         return cls(genomes)
 
 if __name__ == "__main__":
+    from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
+    from torch.optim import Adam
+
     data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
     labels = torch.load("./datasets/cifar-10/raw/all_training_labels.pt").cuda()
     data = data[0:4500]
     labels = labels[0:4500]
-    dataset = torch.utils.data.TensorDataset(data)
-    sampler = torch.utils.data.SequentialSampler(dataset)
-    loader = torch.utils.data.DataLoader(dataset, sampler=sampler, pin_memory=True)
+    dataset = TensorDataset(data)
+    sampler = SequentialSampler(dataset)
+    loader = DataLoader(dataset, sampler=sampler, pin_memory=True)
     population = Population.make_random(1, (3, 32, 32), 10, 1, 10)
     genome_index = 0
     for genome in population.genomes:
         criterion = nn.CrossEntropyLoss()
         print(f"GENOME {genome_index}")
         individual = genome.to_individual()
-        optimizer = torch.optim.Adam(individual.parameters())
+        optimizer = Adam(individual.parameters())
         for epoch_index in range(100):
             print(f"[{datetime.now()}] {genome_index}/{epoch_index}")
             for element_index, [image] in enumerate(loader):
@@ -359,5 +362,4 @@ if __name__ == "__main__":
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-            print(loss.item())
         genome_index += 1
