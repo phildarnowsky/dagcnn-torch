@@ -361,7 +361,7 @@ if __name__ == "__main__":
 
     evolution_set_size = 4500
     n_epochs = 2
-    n_genes = 50
+    n_genes = 25
 
     data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
     labels = torch.load("./datasets/cifar-10/raw/all_training_labels.pt")

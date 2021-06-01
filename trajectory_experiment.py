@@ -63,7 +63,7 @@ if __name__ == "__main__":
     validation_dataset = TensorDataset(validation_data, validation_labels)
     validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True)
 
-    population = Population.make_random(n_genomes, (3, 32, 32), 10, 50, 50)
+    population = Population.make_random(n_genomes, (3, 32, 32), 10, genome_length, genome_length)
     genome_index = 0
     results = []
 
