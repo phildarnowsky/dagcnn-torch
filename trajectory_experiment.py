@@ -18,7 +18,7 @@ def calculate_loss(individual, criterion, loader, optimizer=None):
     running_loss = None
     n_images = 0
     for _, (images, labels) in enumerate(loader):
-        n_images += 1
+        n_images += images.size(0)
         images = images.cuda()
         labels = labels.cuda().flatten()
         predictions = individual(images)
@@ -48,6 +48,7 @@ if __name__ == "__main__":
     n_genomes = 100
     n_epochs = 100
     genome_length = 25
+    evolution_batch_size = 50
 
     full_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
 
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     evolution_data = normalize_image_data(evolution_data, full_data)
     evolution_labels = torch.load("./datasets/cifar-10/processed/evolution_labels.pt").to(dtype=torch.long)
     evolution_dataset = TensorDataset(evolution_data, evolution_labels)
-    evolution_loader = DataLoader(evolution_dataset, shuffle=False, pin_memory=True)
+    evolution_loader = DataLoader(evolution_dataset, shuffle=False, pin_memory=True, batch_size=evolution_batch_size)
 
     validation_data = torch.load("./datasets/cifar-10/processed/validation_data.pt").to(dtype=torch.float32)
     validation_data = normalize_image_data(validation_data, full_data)
