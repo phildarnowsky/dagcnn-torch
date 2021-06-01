@@ -45,9 +45,9 @@ def run_epoch(individual, criterion, evolution_loader, validation_loader, optimi
     return (pre_training_evolution_loss.item(), pre_training_validation_loss.item())
 
 if __name__ == "__main__":
-    n_genomes = 2
-    n_epochs = 2
-    genome_length = 10
+    n_genomes = 100
+    n_epochs = 100
+    genome_length = 25
 
     full_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
 
