@@ -16,9 +16,9 @@ def normalize_image_data(image_data, full_data):
 
 def calculate_loss(individual, criterion, loader, optimizer=None):
     running_loss = None
-    n_images = 0
+    n_batches = 0
     for _, (images, labels) in enumerate(loader):
-        n_images += images.size(0)
+        n_batches += 1
         images = images.cuda()
         labels = labels.cuda().flatten()
         predictions = individual(images)
@@ -32,7 +32,7 @@ def calculate_loss(individual, criterion, loader, optimizer=None):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-    return running_loss / n_images
+    return running_loss / n_batches
 
 def run_epoch(individual, criterion, evolution_loader, validation_loader, optimizer):
     with torch.no_grad():
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     n_epochs = 100
     min_genome_length = 25
     max_genome_length = 50
-    evolution_batch_size = 50
+    batch_size = 50
 
     full_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
 
@@ -57,13 +57,13 @@ if __name__ == "__main__":
     evolution_data = normalize_image_data(evolution_data, full_data)
     evolution_labels = torch.load("./datasets/cifar-10/processed/evolution_labels.pt").to(dtype=torch.long)
     evolution_dataset = TensorDataset(evolution_data, evolution_labels)
-    evolution_loader = DataLoader(evolution_dataset, shuffle=False, pin_memory=True, batch_size=evolution_batch_size)
+    evolution_loader = DataLoader(evolution_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
 
     validation_data = torch.load("./datasets/cifar-10/processed/validation_data.pt").to(dtype=torch.float32)
     validation_data = normalize_image_data(validation_data, full_data)
     validation_labels = torch.load("./datasets/cifar-10/processed/validation_labels.pt").to(dtype=torch.long)
     validation_dataset = TensorDataset(validation_data, validation_labels)
-    validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True)
+    validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
 
     population = Population.make_random(n_genomes, (3, 32, 32), 10, min_genome_length, max_genome_length)
     genome_index = 0
