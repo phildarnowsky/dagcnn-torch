@@ -359,17 +359,18 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
     from torch.optim import Adam
 
-    evolution_set_size = 2
+    evolution_set_size = 4500
     n_epochs = 2
+    n_genes = 50
 
     data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
-    labels = torch.load("./datasets/cifar-10/raw/all_training_labels.pt").cuda()
+    labels = torch.load("./datasets/cifar-10/raw/all_training_labels.pt")
     data = data[0:evolution_set_size]
     labels = labels[0:evolution_set_size]
-    dataset = TensorDataset(data)
+    dataset = TensorDataset(data, labels)
     sampler = SequentialSampler(dataset)
     loader = DataLoader(dataset, sampler=sampler, pin_memory=True)
-    population = Population.make_random(1, (3, 32, 32), 10, 100, 100)
+    population = Population.make_random(1, (3, 32, 32), 10, n_genes, n_genes)
     genome_index = 0
     for genome in population.genomes:
         criterion = nn.CrossEntropyLoss()
@@ -379,10 +380,9 @@ if __name__ == "__main__":
         for epoch_index in range(n_epochs):
             print(f"[{datetime.now()}] {genome_index}/{epoch_index}")
             losses = []
-            for element_index, [image] in enumerate(loader):
+            for element_index, [image, label] in enumerate(loader):
                 prediction = individual(image.cuda())
-                label = labels[element_index]
-                loss = criterion(prediction, label)
+                loss = criterion(prediction, label.cuda().flatten())
                 losses.append(loss.item())
                 optimizer.zero_grad()
                 loss.backward()

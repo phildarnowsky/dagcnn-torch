@@ -8,21 +8,46 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from dagcnn_torch import Population
 
+def saynow(text):
+    print(f"[{datetime.now()}] {text}") 
+
 def normalize_image_data(image_data, full_data):
     return (image_data - full_data.mean()) / full_data.std()
 
-def calculate_loss(individual, criterion, loader):
-    losses = []
+def calculate_loss(individual, criterion, loader, optimizer=None):
+    running_loss = None
+    n_images = 0
     for _, (images, labels) in enumerate(loader):
+        n_images += 1
         images = images.cuda()
         labels = labels.cuda().flatten()
         predictions = individual(images)
-        losses.append(criterion(predictions, labels))
-    return(sum(losses) / len(loader))
+        loss = criterion(predictions, labels)
+        if running_loss:
+            running_loss += loss
+        else:
+            running_loss = loss.detach()
+
+        if optimizer:
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+    return running_loss / n_images
+
+def run_epoch(individual, criterion, evolution_loader, validation_loader, optimizer):
+    with torch.no_grad():
+        individual.eval()
+        pre_training_evolution_loss = calculate_loss(individual, criterion, evolution_loader)
+        pre_training_validation_loss = calculate_loss(individual, criterion, validation_loader)
+
+    individual.train()
+    _ = calculate_loss(individual, criterion, evolution_loader, optimizer)
+    return (pre_training_evolution_loss.item(), pre_training_validation_loss.item())
 
 if __name__ == "__main__":
-    n_genomes = 100
-    n_epochs = 100
+    n_genomes = 2
+    n_epochs = 2
+    genome_length = 10
 
     full_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
 
@@ -38,46 +63,29 @@ if __name__ == "__main__":
     validation_dataset = TensorDataset(validation_data, validation_labels)
     validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True)
 
-    population = Population.make_random(n_genomes, (3, 32, 32), 10, 1, 15)
+    population = Population.make_random(n_genomes, (3, 32, 32), 10, 50, 50)
     genome_index = 0
     results = []
 
     for genome in population.genomes:
         result = [repr(genome)]
-        evolution_results = []
-        validation_results = []
 
         individual = genome.to_individual()
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(individual.parameters())
 
-        individual.eval()
-        evolution_loss = calculate_loss(individual, criterion, evolution_loader)
-        validation_loss = calculate_loss(individual, criterion, validation_loader)
-
-        evolution_results.append(evolution_loss.item())
-        validation_results.append(validation_loss.item())
-
-        individual.train()
-        evolution_loss = calculate_loss(individual, criterion, evolution_loader)
-        optimizer.zero_grad()
-        evolution_loss.backward()
-        optimizer.step()
+        saynow(f"CALCULATING PRETRAINING LOSS FOR GENOME {genome_index}")
+        (evolution_loss, validation_loss) = run_epoch(individual, criterion, evolution_loader, validation_loader, optimizer)
+        evolution_results = [evolution_loss]
+        validation_results = [validation_loss]
+        saynow(evolution_loss)
 
         for epoch_index in range(n_epochs):
-            print(f"[{datetime.now()}] {genome_index}/{epoch_index}")
-            individual.eval()
-            evolution_loss = calculate_loss(individual, criterion, evolution_loader)
-            validation_loss = calculate_loss(individual, criterion, validation_loader)
-
-            evolution_results.append(evolution_loss.item())
-            validation_results.append(validation_loss.item())
-
-            individual.train()
-            evolution_loss = calculate_loss(individual, criterion, evolution_loader)
-            optimizer.zero_grad()
-            evolution_loss.backward()
-            optimizer.step()
+            saynow(f"{genome_index}/{epoch_index}")
+            (evolution_loss, validation_loss) = run_epoch(individual, criterion, evolution_loader, validation_loader, optimizer)
+            evolution_results.append(evolution_loss)
+            validation_results.append(validation_loss)
+            saynow(evolution_loss)
 
         result += evolution_results
         result += validation_results
