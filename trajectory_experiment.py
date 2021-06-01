@@ -47,7 +47,8 @@ def run_epoch(individual, criterion, evolution_loader, validation_loader, optimi
 if __name__ == "__main__":
     n_genomes = 100
     n_epochs = 100
-    genome_length = 25
+    min_genome_length = 25
+    max_genome_length = 50
     evolution_batch_size = 50
 
     full_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
@@ -64,7 +65,7 @@ if __name__ == "__main__":
     validation_dataset = TensorDataset(validation_data, validation_labels)
     validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True)
 
-    population = Population.make_random(n_genomes, (3, 32, 32), 10, genome_length, genome_length)
+    population = Population.make_random(n_genomes, (3, 32, 32), 10, min_genome_length, max_genome_length)
     genome_index = 0
     results = []
 
