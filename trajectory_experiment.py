@@ -47,8 +47,8 @@ def run_epoch(individual, criterion, evolution_loader, validation_loader, optimi
 if __name__ == "__main__":
     n_genomes = 100
     n_epochs = 100
-    min_genome_length = 25
-    max_genome_length = 25
+    min_genome_length = 20
+    max_genome_length = 20
     batch_size = 50
 
     full_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
