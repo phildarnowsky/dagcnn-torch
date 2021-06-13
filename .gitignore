@@ -1,3 +1,6 @@
 datasets/**/*.pt
 !datasets/cifar-10/processed/*.pt
 *.xlsx\#
+*.csv#
+experiment_results/plots/*
+!experiment_results/plots/.keep
