@@ -125,7 +125,6 @@ rho_v1_vm = rho_vn_vm_result[rho_vn_vm_result["n_epochs"] == 1]
 with open("experiment_results/tables/rho_v1_vm.tex", "w") as fo:
     table_lines = map(
         lambda genome_length: "{genome_length} & {m} & {rho:.3f} \\\\".format(genome_length=genome_length, m=minima[genome_length][0], rho=rho_v1_vm[rho_v1_vm['genome_length'] == genome_length].at[0, 'rho']),
-        #lambda genome_length: print("{rho}".format(rho=rho_v1_vm[rho_v1_vm['genome_length'] == genome_length].at[0, 'rho'])),
         [5, 10, 15, 20, 25]
     )
     table_lines = " \\hline\n".join(table_lines)
