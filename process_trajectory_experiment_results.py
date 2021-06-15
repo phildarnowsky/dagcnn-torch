@@ -10,6 +10,9 @@ genome_length_to_filename = {
     25: "./experiment_results/trajectory_2021-06-09T19:19:02.479717.csv"
 }
 
+genome_lengths = list(genome_length_to_filename.keys())
+genome_lengths.sort()
+
 genome_length_to_data_frame = {length : pd.read_csv(filename) for length, filename in genome_length_to_filename.items()}
 
 evolution_average_loss_result = pd.DataFrame()
@@ -19,6 +22,7 @@ rho_en_vm_result = pd.DataFrame()
 rho_vn_vm_result = pd.DataFrame()
 
 minima = {}
+max_m = 0
 
 for genome_length, df in genome_length_to_data_frame.items():
     evolution_losses = df.loc[
@@ -36,6 +40,8 @@ for genome_length, df in genome_length_to_data_frame.items():
     validation_average_losses = validation_losses.mean(axis=0)
     min_x = validation_average_losses.argmin() + 1
     min_y = validation_average_losses.min()
+    if min_x > max_m:
+        max_m = min_x
     minima[genome_length] = (min_x, min_y)
     validation_df = pd.DataFrame({"loss": validation_average_losses, "n_epochs": range(1, 101), "genome_length": genome_length})
     validation_average_loss_result = pd.concat([validation_average_loss_result, validation_df])
@@ -90,7 +96,7 @@ rho_en_vm_plot.legend.set_title("Genome length")
 rho_en_vm_plot.tight_layout()
 rho_en_vm_plot.fig.savefig("experiment_results/plots/rho_en_vm.pdf")
 
-rho_vn_vm_plot = sns.relplot(kind="line", data=rho_vn_vm_result, x="n_epochs", y="rho", hue="genome_length").set_axis_labels("Number of epochs of training", "\u03c1(vn, vm)")
+rho_vn_vm_plot = sns.relplot(kind="line", data=rho_vn_vm_result[rho_vn_vm_result['n_epochs'] <= max_m], x="n_epochs", y="rho", hue="genome_length").set_axis_labels("Number of epochs of training", "\u03c1(vn, vm)")
 rho_vn_vm_plot.legend.set_title("Genome length")
 rho_vn_vm_plot.tight_layout()
 rho_vn_vm_plot.fig.savefig("experiment_results/plots/rho_vn_vm.pdf")
@@ -104,7 +110,7 @@ rho_vn_vm_10_plot.fig.savefig("experiment_results/plots/rho_vn_vm_10.pdf")
 with open("experiment_results/tables/minimum.tex", "w") as fo:
     table_lines = map(
         lambda genome_length: "{genome_length} & {m} & {min_loss:.3f} \\\\".format(genome_length=genome_length, m=minima[genome_length][0], min_loss=minima[genome_length][1]),
-        [5, 10, 15, 20, 25]
+        genome_lengths
     )
     table_lines = " \\hline\n".join(table_lines)
 
@@ -125,7 +131,7 @@ rho_v1_vm = rho_vn_vm_result[rho_vn_vm_result["n_epochs"] == 1]
 with open("experiment_results/tables/rho_v1_vm.tex", "w") as fo:
     table_lines = map(
         lambda genome_length: "{genome_length} & {m} & {rho:.3f} \\\\".format(genome_length=genome_length, m=minima[genome_length][0], rho=rho_v1_vm[rho_v1_vm['genome_length'] == genome_length].at[0, 'rho']),
-        [5, 10, 15, 20, 25]
+        genome_lengths
     )
     table_lines = " \\hline\n".join(table_lines)
 
