@@ -18,6 +18,8 @@ rho_en_vn_result = pd.DataFrame()
 rho_en_vm_result = pd.DataFrame()
 rho_vn_vm_result = pd.DataFrame()
 
+minima = {}
+
 for genome_length, df in genome_length_to_data_frame.items():
     evolution_losses = df.loc[
        :,
@@ -34,6 +36,7 @@ for genome_length, df in genome_length_to_data_frame.items():
     validation_average_losses = validation_losses.mean(axis=0)
     min_x = validation_average_losses.argmin() + 1
     min_y = validation_average_losses.min()
+    minima[genome_length] = (min_x, min_y)
     validation_df = pd.DataFrame({"loss": validation_average_losses, "n_epochs": range(1, 101), "genome_length": genome_length})
     validation_average_loss_result = pd.concat([validation_average_loss_result, validation_df])
 
@@ -91,3 +94,29 @@ rho_vn_vm_plot = sns.relplot(kind="line", data=rho_vn_vm_result, x="n_epochs", y
 rho_vn_vm_plot.legend.set_title("Genome length")
 rho_vn_vm_plot.tight_layout()
 rho_vn_vm_plot.fig.savefig("experiment_results/plots/rho_vn_vm.pdf")
+
+rho_vn_vm_10_result = rho_vn_vm_result[rho_vn_vm_result["n_epochs"] <= 10]
+rho_vn_vm_10_plot = sns.relplot(kind="line", data=rho_vn_vm_10_result, x="n_epochs", y="rho", hue="genome_length").set_axis_labels("Number of epochs of training", "\u03c1(vn, vm)")
+rho_vn_vm_10_plot.legend.set_title("Genome length")
+rho_vn_vm_10_plot.tight_layout()
+rho_vn_vm_10_plot.fig.savefig("experiment_results/plots/rho_vn_vm_10.pdf")
+
+with open("experiment_results/tables/minimum.tex", "w") as fo:
+    table_lines = map(
+        lambda genome_length: "{genome_length} & {m} & {min_loss:.3f} \\\\".format(genome_length=genome_length, m=minima[genome_length][0], min_loss=minima[genome_length][1]),
+        [5, 10, 15, 20, 25]
+    )
+    table_lines = " \\hline\n".join(table_lines)
+
+    table_code = f"""
+        \\begin{{tabular}}{{ | c | c | c | }}
+            \\hline
+            Genome length & $m$ & Minimum $v_{{n}}$ \\\\
+            \\hline
+            \\hline
+            {table_lines}
+            \\hline
+        \\end{{tabular}}
+    """
+
+    fo.write(table_code)
