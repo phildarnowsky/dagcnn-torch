@@ -111,7 +111,7 @@ with open("experiment_results/tables/minimum.tex", "w") as fo:
     table_code = f"""
         \\begin{{tabular}}{{ | c | c | c | }}
             \\hline
-            Genome length & $m$ & Minimum $v_{{n}}$ \\\\
+            Genome length & $m$ & $v_{{m}}$ \\\\
             \\hline
             \\hline
             {table_lines}
