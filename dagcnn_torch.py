@@ -293,9 +293,11 @@ class Individual(nn.Module, AutoRepr):
         return inputs
 
     def __make_tail(self, input_shape, final_layer):
-        dummy_input = torch.zeros(1, *input_shape).cuda()
-        dummy_output_results = self.__calculate_output_results(dummy_input)
-        output_shape = largest_dimensions(dummy_output_results)
+        with torch.no_grad():
+            self.eval()
+            dummy_input = torch.zeros(1, *input_shape).cuda()
+            dummy_output_results = self.__calculate_output_results(dummy_input)
+            output_shape = largest_dimensions(dummy_output_results)
         (input_feature_depth, height, width) = output_shape
         gap_layer = nn.AvgPool2d(kernel_size=(height, width)).cuda()
         flatten_layer = nn.Flatten()
