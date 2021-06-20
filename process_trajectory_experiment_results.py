@@ -7,7 +7,8 @@ genome_length_to_filename = {
     10: "./experiment_results/trajectory_2021-06-11T16:28:30.262541.csv",
     15: "./experiment_results/trajectory_2021-06-11T08:00:50.091424.csv",
     20: "./experiment_results/trajectory_2021-06-10T16:00:53.545725.csv",
-    25: "./experiment_results/trajectory_2021-06-09T19:19:02.479717.csv"
+    25: "./experiment_results/trajectory_2021-06-09T19:19:02.479717.csv",
+    30: "./experiment_results/trajectory_2021-06-19T21:02:16.394366.csv"
 }
 
 genome_lengths = list(genome_length_to_filename.keys())
@@ -128,6 +129,8 @@ with open("experiment_results/tables/minimum.tex", "w") as fo:
     fo.write(table_code)
 
 rho_v1_vm = rho_vn_vm_result[rho_vn_vm_result["n_epochs"] == 1]
+rho_e1_vm = rho_en_vm_result[rho_en_vm_result["n_epochs"] == 1]
+
 with open("experiment_results/tables/rho_v1_vm.tex", "w") as fo:
     table_lines = map(
         lambda genome_length: "{genome_length} & {m} & {rho:.3f} \\\\".format(genome_length=genome_length, m=minima[genome_length][0], rho=rho_v1_vm[rho_v1_vm['genome_length'] == genome_length].at[0, 'rho']),
@@ -139,6 +142,26 @@ with open("experiment_results/tables/rho_v1_vm.tex", "w") as fo:
         \\begin{{tabular}}{{ | c | c | c | }}
             \\hline
             Genome length & $m$ & $\\rho(v_{{1}}, v_{{m}})$ \\\\
+            \\hline
+            \\hline
+            {table_lines}
+            \\hline
+        \\end{{tabular}}
+    """
+
+    fo.write(table_code)
+
+with open("experiment_results/tables/rho_e1_vm.tex", "w") as fo:
+    table_lines = map(
+        lambda genome_length: "{genome_length} & {m} & {rho:.3f} \\\\".format(genome_length=genome_length, m=minima[genome_length][0], rho=rho_e1_vm[rho_e1_vm['genome_length'] == genome_length].at[0, 'rho']),
+        genome_lengths
+    )
+    table_lines = " \\hline\n".join(table_lines)
+
+    table_code = f"""
+        \\begin{{tabular}}{{ | c | c | c | }}
+            \\hline
+            Genome length & $m$ & $\\rho(e_{{1}}, v_{{m}})$ \\\\
             \\hline
             \\hline
             {table_lines}
