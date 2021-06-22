@@ -16,7 +16,7 @@ genome_lengths.sort()
 
 genome_length_to_data_frame = {length : pd.read_csv(filename) for length, filename in genome_length_to_filename.items()}
 
-evolution_average_loss_result = pd.DataFrame()
+training_average_loss_result = pd.DataFrame()
 validation_average_loss_result = pd.DataFrame()
 rho_en_vn_result = pd.DataFrame()
 rho_en_vm_result = pd.DataFrame()
@@ -26,7 +26,7 @@ minima = {}
 max_m = 0
 
 for genome_length, df in genome_length_to_data_frame.items():
-    evolution_losses = df.loc[
+    training_losses = df.loc[
        :,
       'Evolution loss after 1 epochs':'Evolution loss after 100 epochs'
     ]
@@ -34,9 +34,9 @@ for genome_length, df in genome_length_to_data_frame.items():
        :,
       'Validation loss after 1 epochs':'Validation loss after 100 epochs'
     ]
-    evolution_average_losses = evolution_losses.mean(axis=0)
-    evolution_df = pd.DataFrame({"loss": evolution_average_losses, "n_epochs": range(1, 101), "genome_length": genome_length})
-    evolution_average_loss_result = pd.concat([evolution_average_loss_result, evolution_df])
+    training_average_losses = training_losses.mean(axis=0)
+    training_df = pd.DataFrame({"loss": training_average_losses, "n_epochs": range(1, 101), "genome_length": genome_length})
+    training_average_loss_result = pd.concat([training_average_loss_result, training_df])
 
     validation_average_losses = validation_losses.mean(axis=0)
     min_x = validation_average_losses.argmin() + 1
@@ -47,7 +47,7 @@ for genome_length, df in genome_length_to_data_frame.items():
     validation_df = pd.DataFrame({"loss": validation_average_losses, "n_epochs": range(1, 101), "genome_length": genome_length})
     validation_average_loss_result = pd.concat([validation_average_loss_result, validation_df])
 
-    evolution_losses_before_overfit = evolution_losses.loc[
+    training_losses_before_overfit = training_losses.loc[
        :,
       'Evolution loss after 1 epochs':f"Evolution loss after {min_x} epochs"
     ]
@@ -57,14 +57,14 @@ for genome_length, df in genome_length_to_data_frame.items():
     ]
 
     rho_en_vn = map(
-        lambda n: evolution_losses_before_overfit.iloc[:, n].corr(validation_losses_before_overfit.iloc[:, n]),
+        lambda n: training_losses_before_overfit.iloc[:, n].corr(validation_losses_before_overfit.iloc[:, n]),
         range(0, min_x)
     )
     rho_en_vn_df = pd.DataFrame({"rho": rho_en_vn, "n_epochs": range(1, min_x + 1), "genome_length": genome_length})
     rho_en_vn_result = pd.concat([rho_en_vn_result, rho_en_vn_df])
 
     rho_en_vm = map(
-        lambda n: evolution_losses_before_overfit.iloc[:, n].corr(validation_losses_before_overfit.iloc[:, -1]),
+        lambda n: training_losses_before_overfit.iloc[:, n].corr(validation_losses_before_overfit.iloc[:, -1]),
         range(0, min_x)
     )
     rho_en_vm_df = pd.DataFrame({"rho": rho_en_vm, "n_epochs": range(1, min_x + 1), "genome_length": genome_length})
@@ -77,10 +77,10 @@ for genome_length, df in genome_length_to_data_frame.items():
     rho_vn_vm_df = pd.DataFrame({"rho": rho_vn_vm, "n_epochs": range(1, min_x + 1), "genome_length": genome_length})
     rho_vn_vm_result = pd.concat([rho_vn_vm_result, rho_vn_vm_df])
 
-evolution_plot = sns.relplot(kind="line", data=evolution_average_loss_result, x="n_epochs", y="loss", hue="genome_length").set_axis_labels("Number of epochs of training", "Average loss")
-evolution_plot.legend.set_title("Genome length")
-evolution_plot.tight_layout()
-evolution_plot.fig.savefig("experiment_results/plots/average_evolution_loss.pdf")
+training_plot = sns.relplot(kind="line", data=training_average_loss_result, x="n_epochs", y="loss", hue="genome_length").set_axis_labels("Number of epochs of training", "Average loss")
+training_plot.legend.set_title("Genome length")
+training_plot.tight_layout()
+training_plot.fig.savefig("experiment_results/plots/average_training_loss.pdf")
 
 validation_plot = sns.relplot(kind="line", data=validation_average_loss_result, x="n_epochs", y="loss", hue="genome_length").set_axis_labels("Number of epochs of training", "Average loss")
 validation_plot.legend.set_title("Genome length")
