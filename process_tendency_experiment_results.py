@@ -3,12 +3,12 @@ import pandas as pd
 import seaborn as sns
 
 genome_length_to_filename = {
-    5: "./experiment_results/trajectory_2021-06-11T22:12:25.530587.csv",
-    10: "./experiment_results/trajectory_2021-06-11T16:28:30.262541.csv",
-    15: "./experiment_results/trajectory_2021-06-11T08:00:50.091424.csv",
-    20: "./experiment_results/trajectory_2021-06-10T16:00:53.545725.csv",
-    25: "./experiment_results/trajectory_2021-06-09T19:19:02.479717.csv",
-    30: "./experiment_results/trajectory_2021-06-19T21:02:16.394366.csv"
+    5: "./experiment_results/tendency_2021-06-11T22:12:25.530587.csv",
+    10: "./experiment_results/tendency_2021-06-11T16:28:30.262541.csv",
+    15: "./experiment_results/tendency_2021-06-11T08:00:50.091424.csv",
+    20: "./experiment_results/tendency_2021-06-10T16:00:53.545725.csv",
+    25: "./experiment_results/tendency_2021-06-09T19:19:02.479717.csv",
+    30: "./experiment_results/tendency_2021-06-19T21:02:16.394366.csv"
 }
 
 genome_lengths = list(genome_length_to_filename.keys())
