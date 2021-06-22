@@ -55,21 +55,21 @@ class Block(nn.Module):
 class ConvNode(Node):
     def __init__(self, input_shapes, output_feature_depth, kernel_size):
         super().__init__(input_shapes)
-        self.__input_shape = self.input_shapes[0]
-        self.__output_feature_depth = output_feature_depth
-        self.__kernel_size = kernel_size
+        self._input_shape = self.input_shapes[0]
+        self._output_feature_depth = output_feature_depth
+        self._kernel_size = kernel_size
 
     def to_block(self, input_indices):
-        return ConvBlock(input_indices, self.__input_shape[0], self.__output_feature_depth, self.__kernel_size)
+        return ConvBlock(input_indices, self._input_shape[0], self._output_feature_depth, self._kernel_size)
 
     def output_shape(self, _):
-        return (self.__output_feature_depth, self.__input_shape[1], self.__input_shape[2]) 
+        return (self._output_feature_depth, self._input_shape[1], self._input_shape[2]) 
 
     def cache_node_type(self):
         return "C"
 
     def cache_parameters(self):
-        return [self.__kernel_size, self.__output_feature_depth]
+        return [self._kernel_size, self._output_feature_depth]
 
     @classmethod
     def arity(cls):
@@ -94,21 +94,21 @@ class ConvBlock(Block):
 class DepSepConvNode(Node):
     def __init__(self, input_feature_depths, output_feature_depth, kernel_size):
         super().__init__(input_feature_depths)
-        self.__input_shape = self.input_shapes[0]
-        self.__output_feature_depth = output_feature_depth
-        self.__kernel_size = kernel_size
+        self._input_shape = self.input_shapes[0]
+        self._output_feature_depth = output_feature_depth
+        self._kernel_size = kernel_size
 
     def to_block(self, input_indices):
-        return DepSepConvBlock(input_indices, self.__input_shape[0], self.__output_feature_depth, self.__kernel_size)
+        return DepSepConvBlock(input_indices, self._input_shape[0], self._output_feature_depth, self._kernel_size)
 
     def output_shape(self, _):
-        return (self.__output_feature_depth, self.__input_shape[1], self.__input_shape[2]) 
+        return (self._output_feature_depth, self._input_shape[1], self._input_shape[2]) 
 
     def cache_node_type(self):
         return "D"
 
     def cache_parameters(self):
-        return [self.__kernel_size, self.__output_feature_depth]
+        return [self._kernel_size, self._output_feature_depth]
 
     @classmethod
     def arity(cls):
@@ -297,7 +297,7 @@ class Genome(AutoRepr):
         length = randint(min_length, max_length)
         genes = []
         for index in range(length):
-            node_class = choice(cls.__instantiable_classes())
+            node_class = choice(cls._instantiable_classes())
             input_indices = []
             input_feature_shapes = []
             for _ in range(node_class.arity()):
@@ -316,7 +316,7 @@ class Genome(AutoRepr):
         return cls(model_input_shape, model_output_feature_depth, genes)
 
     @classmethod
-    def __instantiable_classes(cls):
+    def _instantiable_classes(cls):
         return [ConvNode, DepSepConvNode, AvgPoolNode, MaxPoolNode, CatNode, SumNode]
 
 class Individual(nn.Module, AutoRepr):
@@ -325,10 +325,10 @@ class Individual(nn.Module, AutoRepr):
         self.blocks = nn.ModuleList(blocks)
         self.output_indices = list(output_indices)
         self.output_feature_depth = output_feature_depth
-        self.tail = self.__make_tail(input_shape, final_layer)
+        self.tail = self._make_tail(input_shape, final_layer)
 
     def forward(self, model_input):
-        output_results = self.__calculate_output_results(model_input)
+        output_results = self._calculate_output_results(model_input)
         output_results = match_shapes(output_results)
         output = torch.zeros_like(output_results[0])
         for output_result in output_results:
@@ -339,7 +339,7 @@ class Individual(nn.Module, AutoRepr):
     def parameters(self):
         return chain(self.blocks.parameters(), self.tail.parameters())
 
-    def __get_block_inputs(self, model_input, results, block):
+    def _get_block_inputs(self, model_input, results, block):
         inputs = []
         for input_index in block.input_indices:
             if input_index == -1:
@@ -348,11 +348,11 @@ class Individual(nn.Module, AutoRepr):
                 inputs.append(results[input_index])
         return inputs
 
-    def __make_tail(self, input_shape, final_layer):
+    def _make_tail(self, input_shape, final_layer):
         with torch.no_grad():
             self.eval()
             dummy_input = torch.zeros(1, *input_shape).cuda()
-            dummy_output_results = self.__calculate_output_results(dummy_input)
+            dummy_output_results = self._calculate_output_results(dummy_input)
             output_shape = largest_dimensions(dummy_output_results)
         (input_feature_depth, height, width) = output_shape
         gap_layer = nn.AvgPool2d(kernel_size=(height, width)).cuda()
@@ -361,10 +361,10 @@ class Individual(nn.Module, AutoRepr):
         kaiming_normal_(fc_layer.weight)
         return nn.Sequential(gap_layer, flatten_layer, fc_layer, final_layer).cuda()
 
-    def __calculate_output_results(self, model_input):
+    def _calculate_output_results(self, model_input):
         results = []
         for block in self.blocks:
-            inputs = self.__get_block_inputs(model_input, results, block)
+            inputs = self._get_block_inputs(model_input, results, block)
             result = block(*inputs)
             results.append(result)
         return list(map(lambda output_index: results[output_index], self.output_indices))
@@ -435,6 +435,7 @@ if __name__ == "__main__":
     for genome in population.genomes:
         criterion = nn.CrossEntropyLoss()
         print(f"GENOME {genome_index}")
+        print(genome.to_cache_key())
         individual = genome.to_individual()
         optimizer = Adam(individual.parameters())
         for epoch_index in range(n_epochs):
