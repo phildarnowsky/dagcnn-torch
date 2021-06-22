@@ -20,7 +20,19 @@ class Node(AutoRepr):
     def to_block(self, _):
         raise NotImplementedError
 
+    def to_cache_key(self):
+        return "_".join([
+            self.cache_node_type(),
+            ",".join(map(str, self.cache_parameters()))
+        ])
+
     def output_shape(self, _):
+        raise NotImplementedError
+
+    def cache_node_type(self):
+        raise NotImplementedError
+
+    def cache_parameters(self):
         raise NotImplementedError
 
     @classmethod
@@ -45,13 +57,19 @@ class ConvNode(Node):
         super().__init__(input_shapes)
         self.__input_shape = self.input_shapes[0]
         self.__output_feature_depth = output_feature_depth
-        self.kernel_size = kernel_size
+        self.__kernel_size = kernel_size
 
     def to_block(self, input_indices):
-        return ConvBlock(input_indices, self.__input_shape[0], self.__output_feature_depth, self.kernel_size)
+        return ConvBlock(input_indices, self.__input_shape[0], self.__output_feature_depth, self.__kernel_size)
 
     def output_shape(self, _):
         return (self.__output_feature_depth, self.__input_shape[1], self.__input_shape[2]) 
+
+    def cache_node_type(self):
+        return "C"
+
+    def cache_parameters(self):
+        return [self.__kernel_size, self.__output_feature_depth]
 
     @classmethod
     def arity(cls):
@@ -78,13 +96,19 @@ class DepSepConvNode(Node):
         super().__init__(input_feature_depths)
         self.__input_shape = self.input_shapes[0]
         self.__output_feature_depth = output_feature_depth
-        self.kernel_size = kernel_size
+        self.__kernel_size = kernel_size
 
     def to_block(self, input_indices):
-        return DepSepConvBlock(input_indices, self.__input_shape[0], self.__output_feature_depth, self.kernel_size)
+        return DepSepConvBlock(input_indices, self.__input_shape[0], self.__output_feature_depth, self.__kernel_size)
 
     def output_shape(self, _):
         return (self.__output_feature_depth, self.__input_shape[1], self.__input_shape[2]) 
+
+    def cache_node_type(self):
+        return "D"
+
+    def cache_parameters(self):
+        return [self.__kernel_size, self.__output_feature_depth]
 
     @classmethod
     def arity(cls):
@@ -148,6 +172,12 @@ class AvgPoolNode(PoolNode):
     def block_class(self):
         return AvgPoolBlock
 
+    def cache_node_type(self):
+        return "A"
+
+    def cache_parameters(self):
+        return []
+
 class AvgPoolBlock(PoolBlock):
     def layer_class(self):
         return nn.AvgPool2d
@@ -155,6 +185,12 @@ class AvgPoolBlock(PoolBlock):
 class MaxPoolNode(PoolNode):
     def block_class(self):
         return MaxPoolBlock
+
+    def cache_node_type(self):
+        return "M"
+
+    def cache_parameters(self):
+        return []
 
 class MaxPoolBlock(PoolBlock):
     def layer_class(self):
@@ -169,6 +205,12 @@ class CatNode(Node):
         output_height = max(map(lambda t: t[0], input_shapes))
         output_width = max(map(lambda t: t[0], input_shapes))
         return (output_feature_depth, output_height, output_width)
+
+    def cache_node_type(self):
+        return "K"
+
+    def cache_parameters(self):
+        return []
 
     @classmethod
     def arity(cls):
@@ -192,6 +234,12 @@ class SumNode(Node):
         output_height = max(map(lambda t: t[0], input_shapes))
         output_width = max(map(lambda t: t[0], input_shapes))
         return (output_feature_depth, output_height, output_width)
+
+    def cache_node_type(self):
+        return "S"
+
+    def cache_parameters(self):
+        return []
 
     @classmethod
     def arity(cls):
@@ -219,11 +267,20 @@ class Gene(AutoRepr):
     def to_block(self):
         return self.node.to_block(self.input_indices)
 
+    def to_cache_key(self):
+        return "({node_cache_key}_{input_indices})".format(
+            node_cache_key = self.node.to_cache_key(),
+            input_indices = ",".join(map(str, self.input_indices))
+        )
+
 class Genome(AutoRepr):
     def __init__(self, input_shape, output_feature_depth, genes):
         self.input_shape = input_shape
         self.output_feature_depth = output_feature_depth
         self.genes = genes
+
+    def to_cache_key(self):
+        return "".join(map(lambda gene: gene.to_cache_key(), self.genes))
 
     def to_individual(self):
         blocks = []
@@ -261,7 +318,6 @@ class Genome(AutoRepr):
     @classmethod
     def __instantiable_classes(cls):
         return [ConvNode, DepSepConvNode, AvgPoolNode, MaxPoolNode, CatNode, SumNode]
-        #return [SumNode]
 
 class Individual(nn.Module, AutoRepr):
     def __init__(self, blocks, input_shape, output_indices, output_feature_depth, final_layer = nn.Identity()):
@@ -349,6 +405,7 @@ def match_shapes(tensors, match_channels=True):
 class Population():
     def __init__(self, genomes):
         self.genomes = genomes
+        self.fitness_cache = {}
 
     @classmethod
     def make_random(cls, n_genomes, input_shape, n_outputs, minimum_length, maximum_length):
@@ -361,7 +418,8 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
     from torch.optim import Adam
 
-    evolution_set_size = 4500
+    #evolution_set_size = 4500
+    evolution_set_size = 4
     n_epochs = 2
     n_genes = 25
 
