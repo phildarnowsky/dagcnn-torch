@@ -6,6 +6,7 @@ import torch
 from torch import nn
 from torch.nn import functional
 from torch.nn.init import kaiming_normal_
+from torch.optim import Adam
 
 class AutoRepr():
     def __repr__(self):
@@ -403,51 +404,96 @@ def match_shapes(tensors, match_channels=True):
     return result
 
 class Population():
-    def __init__(self, genomes):
-        self.genomes = genomes
+    def __init__(
+        self,
+        genomes,
+        training_loader,
+        validation_loader,
+        make_optimizer=lambda individual: Adam(individual.parameters()),
+        criterion_class=nn.CrossEntropyLoss
+    ):
+        self._genomes = genomes
         self._fitness_cache = {}
+        self._training_loader = training_loader
+        self._validation_loader = validation_loader
+        self._make_optimizer = make_optimizer
+        self._criterion_class = criterion_class
+
+    def evaluate_fitnesses(self):
+        for genome in self._genomes:
+            cache_key = genome.to_cache_key()
+            if not cache_key in self._fitness_cache:
+                self._fitness_cache[cache_key] = self._evaluate_fitness(genome)
+
+    def _evaluate_fitness(self, genome):
+        individual = genome.to_individual()
+        validation_losses = []
+        criterion = self._criterion_class()
+        optimizer = self._make_optimizer(individual)
+
+        for _, (training_examples, training_labels) in enumerate(self._training_loader):
+            training_examples = training_examples.cuda()
+            training_labels = training_labels.cuda()
+            training_predictions = individual(training_examples)
+
+            training_loss = criterion(training_predictions, training_labels.flatten())
+            optimizer.zero_grad()
+            training_loss.backward()
+            optimizer.step()
+
+        with torch.no_grad():
+            for _, (validation_examples, validation_labels) in enumerate(self._validation_loader):
+                validation_examples = validation_examples.cuda()
+                validation_labels = validation_labels.cuda()
+                validation_predictions = individual(validation_examples)
+
+                validation_loss = criterion(validation_predictions, validation_labels.flatten())
+                validation_losses.append(validation_loss.item())
+
+        validation_losses = torch.tensor(validation_losses)
+        return {'mean': validation_losses.mean().item(), 'std': validation_losses.std().item()}
 
     @classmethod
-    def make_random(cls, n_genomes, input_shape, n_outputs, minimum_length, maximum_length):
+    def make_random(
+        cls,
+        n_genomes,
+        input_shape,
+        n_outputs,
+        minimum_length,
+        maximum_length,
+        training_loader,
+        validation_loader,
+        make_optimizer=lambda individual: Adam(individual.parameters()),
+        criterion_class=nn.CrossEntropyLoss
+    ):
         genomes = []
         for _ in range(n_genomes):
             genomes.append(Genome.make_random(input_shape, n_outputs, minimum_length, maximum_length))
-        return cls(genomes)
+        return cls(genomes, training_loader, validation_loader, make_optimizer, criterion_class)
 
 if __name__ == "__main__":
-    from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
-    from torch.optim import Adam
+    from torch.utils.data import DataLoader, TensorDataset
 
-    #evolution_set_size = 4500
-    evolution_set_size = 4
-    n_epochs = 2
-    n_genes = 25
+    batch_size = 50
+    n_genomes = 100
+    n_genes = 5
 
-    data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
-    labels = torch.load("./datasets/cifar-10/raw/all_training_labels.pt")
-    data = data[0:evolution_set_size]
-    labels = labels[0:evolution_set_size]
-    dataset = TensorDataset(data, labels)
-    sampler = SequentialSampler(dataset)
-    loader = DataLoader(dataset, sampler=sampler, pin_memory=True)
-    population = Population.make_random(1, (3, 32, 32), 10, n_genes, n_genes)
-    genome_index = 0
-    for genome in population.genomes:
-        criterion = nn.CrossEntropyLoss()
-        print(f"GENOME {genome_index}")
-        print(genome.to_cache_key())
-        individual = genome.to_individual()
-        optimizer = Adam(individual.parameters())
-        for epoch_index in range(n_epochs):
-            print(f"[{datetime.now()}] {genome_index}/{epoch_index}")
-            losses = []
-            for element_index, [image, label] in enumerate(loader):
-                prediction = individual(image.cuda())
-                loss = criterion(prediction, label.cuda().flatten())
-                losses.append(loss.item())
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-            average_loss = sum(losses) / len(losses)
-            print(average_loss)
-        genome_index += 1
+    full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
+    full_training_data_mean = full_training_data.mean()
+    full_training_data_std = full_training_data.std()
+
+    training_data = torch.load("./datasets/cifar-10/processed/training_data.pt").to(dtype=torch.float32)
+    training_data = (training_data - full_training_data_mean) / full_training_data_std
+    training_labels = torch.load("./datasets/cifar-10/processed/training_labels.pt").to(dtype=torch.long)
+    training_dataset = TensorDataset(training_data, training_labels)
+    training_loader = DataLoader(training_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
+
+    validation_data = torch.load("./datasets/cifar-10/processed/validation_data.pt").to(dtype=torch.float32)
+    validation_data = (validation_data - full_training_data_mean) / full_training_data_std
+    validation_labels = torch.load("./datasets/cifar-10/processed/validation_labels.pt").to(dtype=torch.long)
+    validation_dataset = TensorDataset(validation_data, validation_labels)
+    validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
+
+    population = Population.make_random(n_genomes, (3, 32, 32), 10, n_genes, n_genes, training_loader, validation_loader)
+    population.evaluate_fitnesses()
+    print(population._fitness_cache)
