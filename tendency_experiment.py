@@ -34,15 +34,15 @@ def calculate_loss(individual, criterion, loader, optimizer=None):
             optimizer.step()
     return running_loss / n_batches
 
-def run_epoch(individual, criterion, evolution_loader, validation_loader, optimizer):
+def run_epoch(individual, criterion, training_loader, validation_loader, optimizer):
     with torch.no_grad():
         individual.eval()
-        pre_training_evolution_loss = calculate_loss(individual, criterion, evolution_loader)
+        pre_training_training_loss = calculate_loss(individual, criterion, training_loader)
         pre_training_validation_loss = calculate_loss(individual, criterion, validation_loader)
 
     individual.train()
-    _ = calculate_loss(individual, criterion, evolution_loader, optimizer)
-    return (pre_training_evolution_loss.item(), pre_training_validation_loss.item())
+    _ = calculate_loss(individual, criterion, training_loader, optimizer)
+    return (pre_training_training_loss.item(), pre_training_validation_loss.item())
 
 if __name__ == "__main__":
     n_genomes = 100
@@ -53,11 +53,11 @@ if __name__ == "__main__":
 
     full_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
 
-    evolution_data = torch.load("./datasets/cifar-10/processed/evolution_data.pt").to(dtype=torch.float32)
-    evolution_data = normalize_image_data(evolution_data, full_data)
-    evolution_labels = torch.load("./datasets/cifar-10/processed/evolution_labels.pt").to(dtype=torch.long)
-    evolution_dataset = TensorDataset(evolution_data, evolution_labels)
-    evolution_loader = DataLoader(evolution_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
+    training_data = torch.load("./datasets/cifar-10/processed/training_data.pt").to(dtype=torch.float32)
+    training_data = normalize_image_data(training_data, full_data)
+    training_labels = torch.load("./datasets/cifar-10/processed/training_labels.pt").to(dtype=torch.long)
+    training_dataset = TensorDataset(training_data, training_labels)
+    training_loader = DataLoader(training_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
 
     validation_data = torch.load("./datasets/cifar-10/processed/validation_data.pt").to(dtype=torch.float32)
     validation_data = normalize_image_data(validation_data, full_data)
@@ -77,19 +77,19 @@ if __name__ == "__main__":
         optimizer = Adam(individual.parameters())
 
         saynow(f"CALCULATING PRETRAINING LOSS FOR GENOME {genome_index}")
-        (evolution_loss, validation_loss) = run_epoch(individual, criterion, evolution_loader, validation_loader, optimizer)
-        evolution_results = [evolution_loss]
+        (training_loss, validation_loss) = run_epoch(individual, criterion, training_loader, validation_loader, optimizer)
+        training_results = [training_loss]
         validation_results = [validation_loss]
-        saynow(evolution_loss)
+        saynow(training_loss)
 
         for epoch_index in range(n_epochs):
             saynow(f"{genome_index}/{epoch_index}")
-            (evolution_loss, validation_loss) = run_epoch(individual, criterion, evolution_loader, validation_loader, optimizer)
-            evolution_results.append(evolution_loss)
+            (training_loss, validation_loss) = run_epoch(individual, criterion, training_loader, validation_loader, optimizer)
+            training_results.append(training_loss)
             validation_results.append(validation_loss)
-            saynow(evolution_loss)
+            saynow(training_loss)
 
-        result += evolution_results
+        result += training_results
         result += validation_results
 
         results.append(result)            
