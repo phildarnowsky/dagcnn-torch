@@ -203,8 +203,8 @@ class CatNode(Node):
 
     def output_shape(self, input_shapes):
         output_feature_depth = sum(map(lambda t: t[0], input_shapes))
-        output_height = max(map(lambda t: t[0], input_shapes))
-        output_width = max(map(lambda t: t[0], input_shapes))
+        output_height = max(map(lambda t: t[1], input_shapes))
+        output_width = max(map(lambda t: t[2], input_shapes))
         return (output_feature_depth, output_height, output_width)
 
     def _cache_node_type(self):
@@ -232,8 +232,8 @@ class SumNode(Node):
 
     def output_shape(self, input_shapes):
         output_feature_depth = max(map(lambda t: t[0], input_shapes))
-        output_height = max(map(lambda t: t[0], input_shapes))
-        output_width = max(map(lambda t: t[0], input_shapes))
+        output_height = max(map(lambda t: t[1], input_shapes))
+        output_width = max(map(lambda t: t[2], input_shapes))
         return (output_feature_depth, output_height, output_width)
 
     def _cache_node_type(self):
