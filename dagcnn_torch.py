@@ -420,7 +420,9 @@ class Population():
         self._criterion_class = criterion_class
 
     def evaluate_fitnesses(self):
-        for genome in self._genomes:
+        for genome_index, genome in enumerate(self._genomes):
+            print(f"GENOME {genome_index}")
+            print(genome.to_cache_key())
             cache_key = genome.to_cache_key()
             if not cache_key in self._fitness_cache:
                 self._fitness_cache[cache_key] = self._evaluate_fitness(genome)
@@ -431,6 +433,7 @@ class Population():
         criterion = self._criterion_class()
         optimizer = self._make_optimizer(individual)
 
+        individual.train()
         for _, (training_examples, training_labels) in enumerate(self._training_loader):
             training_examples = training_examples.cuda()
             training_labels = training_labels.cuda()
@@ -441,6 +444,7 @@ class Population():
             training_loss.backward()
             optimizer.step()
 
+        individual.eval()
         with torch.no_grad():
             for _, (validation_examples, validation_labels) in enumerate(self._validation_loader):
                 validation_examples = validation_examples.cuda()
@@ -475,8 +479,8 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader, TensorDataset
 
     batch_size = 50
-    n_genomes = 100
-    n_genes = 5
+    n_genomes = 1000000
+    n_genes = 30
 
     full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
     full_training_data_mean = full_training_data.mean()
