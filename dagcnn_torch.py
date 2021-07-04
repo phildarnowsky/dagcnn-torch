@@ -1,6 +1,7 @@
 from datetime import datetime
 from itertools import chain
 from random import choice, randint
+import pickle
 
 import torch
 from torch import nn
@@ -344,9 +345,9 @@ class Individual(nn.Module, AutoRepr):
         inputs = []
         for input_index in block.input_indices:
             if input_index == -1:
-                inputs.append(model_input)
+                inputs.append(model_input.cuda())
             else:
-                inputs.append(results[input_index])
+                inputs.append(results[input_index].cuda())
         return inputs
 
     def _make_tail(self, input_shape, final_layer):
@@ -364,11 +365,11 @@ class Individual(nn.Module, AutoRepr):
 
     def _calculate_output_results(self, model_input):
         results = []
-        for block in self.blocks:
+        for block_index, block in enumerate(self.blocks):
             inputs = self._get_block_inputs(model_input, results, block)
-            result = block(*inputs)
+            result = block(*inputs).cpu()
             results.append(result)
-        return list(map(lambda output_index: results[output_index], self.output_indices))
+        return list(map(lambda output_index: results[output_index].cuda(), self.output_indices))
 
 def largest_dimensions(tensors):
     feature_depths = map(lambda tensor: tensor.size(1), tensors)
@@ -428,6 +429,8 @@ class Population():
                 self._fitness_cache[cache_key] = self._evaluate_fitness(genome)
 
     def _evaluate_fitness(self, genome):
+#       with open("./last_genome.pt", "wb") as fo:
+#           pickle.dump(genome, fo)
         individual = genome.to_individual()
         validation_losses = []
         criterion = self._criterion_class()
@@ -478,8 +481,8 @@ class Population():
 if __name__ == "__main__":
     from torch.utils.data import DataLoader, TensorDataset
 
-    batch_size = 50
-    n_genomes = 1000000
+    batch_size = 10
+    n_genomes = 1000
     n_genes = 30
 
     full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
