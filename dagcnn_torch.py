@@ -1,7 +1,8 @@
-from datetime import datetime
+# from datetime import datetime
+from math import floor
 from itertools import chain
 from random import choice, randint
-import pickle
+# import pickle
 
 import torch
 from torch import nn
@@ -411,22 +412,41 @@ class Population():
         training_loader,
         validation_loader,
         make_optimizer=lambda individual: Adam(individual.parameters()),
-        criterion_class=nn.CrossEntropyLoss
+        criterion_class=nn.CrossEntropyLoss,
+        elitism_fraction=0.2,
+        mean_threshold=0.2,
+        std_threshold=0.02
     ):
         self._genomes = genomes
+        n_genomes = len(genomes)
+        self._n_by_elitism = floor(elitism_fraction * n_genomes)
+        self._n_by_breeding = n_genomes - self._n_by_elitism
+
         self._fitness_cache = {}
         self._training_loader = training_loader
         self._validation_loader = validation_loader
         self._make_optimizer = make_optimizer
         self._criterion_class = criterion_class
+        self._mean_threshold = mean_threshold
+        self._std_threshold = std_threshold
 
     def evaluate_fitnesses(self):
         for genome_index, genome in enumerate(self._genomes):
-            print(f"GENOME {genome_index}")
-            print(genome.to_cache_key())
+#           print(f"GENOME {genome_index}")
+#           print(genome.to_cache_key())
             cache_key = genome.to_cache_key()
             if not cache_key in self._fitness_cache:
                 self._fitness_cache[cache_key] = self._evaluate_fitness(genome)
+
+    def breed_next_generation(self):
+        self.evaluate_fitnesses()
+        new_genomes = []
+        for _ in range(0, self._n_by_elitism):
+            # print(f"CHOOSING ELITIST {i}")
+            elite_genome = self._select_by_slack_binary_tournament()
+            new_genomes.append(elite_genome)
+
+        self._genomes = new_genomes
 
     def _evaluate_fitness(self, genome):
 #       with open("./last_genome.pt", "wb") as fo:
@@ -458,7 +478,31 @@ class Population():
                 validation_losses.append(validation_loss.item())
 
         validation_losses = torch.tensor(validation_losses)
-        return {'mean': validation_losses.mean().item(), 'std': validation_losses.std().item()}
+        n_parameters = sum(list(map(lambda parameter: parameter.size().numel(), individual.parameters())))
+
+        return {'mean': validation_losses.mean().item(), 'std': validation_losses.std().item(), 'n_parameters': n_parameters}
+
+    def _select_by_slack_binary_tournament(self):
+        genome1 = choice(self._genomes)
+        genome2 = choice(self._genomes)
+
+        fitness1 = self._fitness_cache[genome1.to_cache_key()]
+        fitness2 = self._fitness_cache[genome2.to_cache_key()]
+#       print(fitness1)
+#       print(fitness2)
+
+        if fitness1['mean'] - fitness2['mean'] > self._mean_threshold:
+            return genome2
+        elif fitness2['mean'] - fitness1['mean'] > self._mean_threshold:
+            return genome1
+        elif fitness1['std'] - fitness2['std'] > self._std_threshold:
+            return genome2
+        elif fitness2['std'] - fitness1['std'] > self._std_threshold:
+            return genome1
+        elif fitness1['n_parameters'] < fitness2['n_parameters']:
+            return genome1
+
+        return genome2
 
     @classmethod
     def make_random(
@@ -482,8 +526,9 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader, TensorDataset
 
     batch_size = 10
-    n_genomes = 1000
-    n_genes = 30
+    n_genomes = 10
+    min_n_genes = 1
+    max_n_genes = 5
 
     full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
     full_training_data_mean = full_training_data.mean()
@@ -501,6 +546,7 @@ if __name__ == "__main__":
     validation_dataset = TensorDataset(validation_data, validation_labels)
     validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
 
-    population = Population.make_random(n_genomes, (3, 32, 32), 10, n_genes, n_genes, training_loader, validation_loader)
-    population.evaluate_fitnesses()
-    print(population._fitness_cache)
+    population = Population.make_random(n_genomes, (3, 32, 32), 10, min_n_genes, max_n_genes, training_loader, validation_loader)
+    print(population._genomes)
+    population.breed_next_generation()
+    print(population._genomes)
