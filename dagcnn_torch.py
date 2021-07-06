@@ -430,16 +430,7 @@ class Population():
         self._mean_threshold = mean_threshold
         self._std_threshold = std_threshold
 
-    def evaluate_fitnesses(self):
-        for genome_index, genome in enumerate(self._genomes):
-#           print(f"GENOME {genome_index}")
-#           print(genome.to_cache_key())
-            cache_key = genome.to_cache_key()
-            if not cache_key in self._fitness_cache:
-                self._fitness_cache[cache_key] = self._evaluate_fitness(genome)
-
     def breed_next_generation(self):
-        self.evaluate_fitnesses()
         new_genomes = []
         for _ in range(0, self._n_by_elitism):
             # print(f"CHOOSING ELITIST {i}")
@@ -447,6 +438,14 @@ class Population():
             new_genomes.append(elite_genome)
 
         self._genomes = new_genomes
+
+    def _fitness(self, genome):
+        cache_key = genome.to_cache_key()
+        # print(f"FITNESS FOR {cache_key}")
+        if cache_key not in self._fitness_cache:
+            # print(f"CACHE MISS ON {cache_key}")
+            self._fitness_cache[cache_key] = self._evaluate_fitness(genome)
+        return self._fitness_cache[cache_key]
 
     def _evaluate_fitness(self, genome):
 #       with open("./last_genome.pt", "wb") as fo:
@@ -486,8 +485,8 @@ class Population():
         genome1 = choice(self._genomes)
         genome2 = choice(self._genomes)
 
-        fitness1 = self._fitness_cache[genome1.to_cache_key()]
-        fitness2 = self._fitness_cache[genome2.to_cache_key()]
+        fitness1 = self._fitness(genome1)
+        fitness2 = self._fitness(genome2)
 #       print(fitness1)
 #       print(fitness2)
 
@@ -526,7 +525,7 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader, TensorDataset
 
     batch_size = 10
-    n_genomes = 10
+    n_genomes = 100
     min_n_genes = 1
     max_n_genes = 5
 
