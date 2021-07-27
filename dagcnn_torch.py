@@ -1,3 +1,5 @@
+from copy import deepcopy
+from datetime import datetime
 from math import floor
 from itertools import chain
 from random import choice, randint, random
@@ -15,6 +17,10 @@ class AutoRepr():
         return f"<{name} {attributes}>"
 
 class Gene(AutoRepr):
+    def apply_random_mutation(self):
+        mutation = choice(self._valid_mutations())
+        return mutation.apply(self)
+
     def to_cache_key(self):
         parameter_string = ",".join(map(str, self._cache_parameters()))
         input_indices_string = ",".join(map(str, self.input_indices))
@@ -46,6 +52,13 @@ class Gene(AutoRepr):
             return model_input_shape
         else:
             return layer_output_shapes[input_index]
+
+    def _valid_mutations(self):
+        basic_mutations = [DeletionMutation]
+        return basic_mutations + self._class_specific_mutations()
+
+    def _class_specific_mutations(self):
+        return []
 
     @classmethod
     def arity(cls):
@@ -315,7 +328,17 @@ class SumBlock(Block):
         output_height = max(map(lambda t: t[1], self._input_shapes))
         output_width = max(map(lambda t: t[2], self._input_shapes))
         return (output_feature_depth, output_height, output_width)
-        
+
+class Mutation():
+    @classmethod
+    def apply(cls, _):
+        raise NotImplementedError
+
+class DeletionMutation(Mutation):
+    @classmethod
+    def apply(cls, _):
+        return []
+
 class Genome(AutoRepr):
     def __init__(self, input_shape, output_feature_depth, genes):
         self.input_shape = input_shape
@@ -327,12 +350,12 @@ class Genome(AutoRepr):
         if n_genes > len(other.genes):
             return(other.crossover(self))
 
-        print("=======================================")
-        print(self.to_cache_key())
-        print(other.to_cache_key())
+#       print("=======================================")
+#       print(self.to_cache_key())
+#       print(other.to_cache_key())
         start_index = randint(0, n_genes - 1)
         end_index = randint(start_index + 1, n_genes)
-        print(f"CROSSING OVER FROM {start_index} TO {end_index}")
+#        print(f"CROSSING OVER FROM {start_index} TO {end_index}")
 
         if random() < 0.5:
             parent1 = self
@@ -348,7 +371,7 @@ class Genome(AutoRepr):
         assert(len(child_genes) == len(parent1.genes))
 
         child = Genome(self.input_shape, self.output_feature_depth, child_genes)
-        print(child.to_cache_key())
+#       print(child.to_cache_key())
         return(child)
 
     def to_cache_key(self):
@@ -365,6 +388,49 @@ class Genome(AutoRepr):
             output_shapes.append(block.output_shape())
             output_indices = output_indices.difference(set(gene.input_indices))
         return Individual(blocks, self.input_shape, output_indices, self.output_feature_depth)
+
+    def apply_mutations(self, mutation_probability):
+        genome_length = len(self.genes)
+        new_genes = []
+        input_adjustments = [0] * genome_length
+        print(input_adjustments)
+
+        for source_gene_index, source_gene in enumerate(self.genes):
+            replacement_genes = self._possibly_apply_mutation_to_gene(source_gene, mutation_probability)
+            replacement_genes = self._apply_input_adjustments(replacement_genes, input_adjustments)
+
+            adjustment_change = len(replacement_genes) - 1
+            for i in range(source_gene_index, genome_length):
+                input_adjustments[i] += adjustment_change
+            print(input_adjustments)
+
+            new_genes += replacement_genes
+
+        if(new_genes == []):
+            new_genes = self.genes
+
+        return Genome(self.input_shape, self.output_feature_depth, new_genes)
+
+    def _possibly_apply_mutation_to_gene(self, source_gene, mutation_probability):
+        if random() > mutation_probability:
+            return [source_gene]
+        return source_gene.apply_random_mutation()
+
+    def _apply_input_adjustments(self, genes, input_adjustments):
+        new_genes = []
+
+        for gene in genes:
+            new_input_indices = []
+            for input_index in gene.input_indices:
+                if input_index == -1:
+                    new_input_indices.append(-1)
+                else:
+                    new_input_indices.append(input_index + input_adjustments[input_index])
+
+            new_gene = deepcopy(gene)
+            new_gene.input_indices = new_input_indices
+            new_genes.append(new_gene)
+        return new_genes
 
     @classmethod
     def make_random(cls, model_input_shape, model_output_feature_depth, min_length, max_length):
@@ -474,7 +540,8 @@ class Population():
         criterion_class=nn.CrossEntropyLoss,
         elitism_fraction=0.2,
         mean_threshold=0.2,
-        std_threshold=0.02
+        std_threshold=0.02,
+        mutation_probability=0.003
     ):
         self._genomes = genomes
         n_genomes = len(genomes)
@@ -488,6 +555,7 @@ class Population():
         self._criterion_class = criterion_class
         self._mean_threshold = mean_threshold
         self._std_threshold = std_threshold
+        self._mutation_probability = mutation_probability
 
     def breed_next_generation(self):
         new_genomes = []
@@ -501,6 +569,12 @@ class Population():
             child = parent1.crossover(parent2)
             new_genomes.append(child)
 
+        new_genomes = list(
+            map(
+                lambda genome: genome.apply_mutations(self._mutation_probability),
+                new_genomes
+            )
+        )
         self._genomes = new_genomes
 
     def _fitness(self, genome):
@@ -573,20 +647,30 @@ class Population():
         validation_loader,
         make_optimizer=lambda individual: Adam(individual.parameters()),
         criterion_class=nn.CrossEntropyLoss,
-        elitism_fraction=0.2
+        elitism_fraction=0.2,
+        mutation_probability=0.003
     ):
         genomes = []
         for _ in range(n_genomes):
             genomes.append(Genome.make_random(input_shape, n_outputs, minimum_length, maximum_length))
-        return cls(genomes, training_loader, validation_loader, make_optimizer, criterion_class, elitism_fraction=elitism_fraction)
+        return cls(genomes, training_loader, validation_loader, make_optimizer, criterion_class, elitism_fraction=elitism_fraction, mutation_probability=mutation_probability)
+
+def saynow(text):
+    print(f"[{datetime.now()}] {text}") 
 
 if __name__ == "__main__":
     from torch.utils.data import DataLoader, TensorDataset
 
     batch_size = 10
-    n_genomes = 100
-    min_n_genes = 3
-    max_n_genes = 7
+    n_genomes = 1
+    min_n_genes = 16
+    max_n_genes = 16
+    n_generations = 100
+    #elitism_fraction = 0.2
+    elitism_fraction = 0
+    #mutation_probability = 0.003
+    mutation_probability = 0.5
+    #mutation_probability = 100
 
     full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
     full_training_data_mean = full_training_data.mean()
@@ -604,5 +688,10 @@ if __name__ == "__main__":
     validation_dataset = TensorDataset(validation_data, validation_labels)
     validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
 
-    population = Population.make_random(n_genomes, (3, 32, 32), 10, min_n_genes, max_n_genes, training_loader, validation_loader, elitism_fraction=0)
-    population.breed_next_generation()
+    population = Population.make_random(n_genomes, (3, 32, 32), 10, min_n_genes, max_n_genes, training_loader, validation_loader, elitism_fraction=elitism_fraction, mutation_probability=mutation_probability)
+
+    saynow(population._genomes)
+    for i in range(n_generations):
+        saynow(f"GENERATION {i}")
+        population.breed_next_generation()
+    saynow(population._genomes)
