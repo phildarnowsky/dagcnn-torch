@@ -17,9 +17,9 @@ class AutoRepr():
         return f"<{name} {attributes}>"
 
 class Gene(AutoRepr):
-    def apply_random_mutation(self):
+    def apply_random_mutation(self, source_gene_index):
         mutation = choice(self._valid_mutations())
-        return mutation.apply(self)
+        return mutation.apply(self, source_gene_index)
 
     def to_cache_key(self):
         parameter_string = ",".join(map(str, self._cache_parameters()))
@@ -54,7 +54,7 @@ class Gene(AutoRepr):
             return layer_output_shapes[input_index]
 
     def _valid_mutations(self):
-        basic_mutations = [DeletionMutation]
+        basic_mutations = [DeletionMutation, InsertionMutation]
         return basic_mutations + self._class_specific_mutations()
 
     def _class_specific_mutations(self):
@@ -63,6 +63,15 @@ class Gene(AutoRepr):
     @classmethod
     def arity(cls):
         raise NotImplementedError
+
+    @classmethod
+    def instantiable_classes(cls):
+        return [ConvGene, DepSepConvGene, AvgPoolGene, MaxPoolGene, CatGene, SumGene]
+
+    @classmethod
+    def make_random(cls, index):
+        gene_class = choice(Gene.instantiable_classes())
+        return gene_class.make_random(index)
 
     @classmethod
     def _choose_input_indices(cls, index):
@@ -331,13 +340,21 @@ class SumBlock(Block):
 
 class Mutation():
     @classmethod
-    def apply(cls, _):
+    def apply(cls, _gene, _index):
         raise NotImplementedError
 
 class DeletionMutation(Mutation):
     @classmethod
-    def apply(cls, _):
+    def apply(cls, _gene, _index):
         return []
+
+class InsertionMutation(Mutation):
+    @classmethod
+    def apply(cls, gene, index):
+        if random() < 0.5:
+            return [gene, Gene.make_random(index + 1)]
+        else:
+            return [Gene.make_random(index), gene]
 
 class Genome(AutoRepr):
     def __init__(self, input_shape, output_feature_depth, genes):
@@ -350,12 +367,8 @@ class Genome(AutoRepr):
         if n_genes > len(other.genes):
             return(other.crossover(self))
 
-#       print("=======================================")
-#       print(self.to_cache_key())
-#       print(other.to_cache_key())
         start_index = randint(0, n_genes - 1)
         end_index = randint(start_index + 1, n_genes)
-#        print(f"CROSSING OVER FROM {start_index} TO {end_index}")
 
         if random() < 0.5:
             parent1 = self
@@ -371,7 +384,6 @@ class Genome(AutoRepr):
         assert(len(child_genes) == len(parent1.genes))
 
         child = Genome(self.input_shape, self.output_feature_depth, child_genes)
-#       print(child.to_cache_key())
         return(child)
 
     def to_cache_key(self):
@@ -393,16 +405,14 @@ class Genome(AutoRepr):
         genome_length = len(self.genes)
         new_genes = []
         input_adjustments = [0] * genome_length
-        print(input_adjustments)
 
         for source_gene_index, source_gene in enumerate(self.genes):
-            replacement_genes = self._possibly_apply_mutation_to_gene(source_gene, mutation_probability)
+            replacement_genes = self._possibly_apply_mutation_to_gene(source_gene, source_gene_index, mutation_probability)
             replacement_genes = self._apply_input_adjustments(replacement_genes, input_adjustments)
 
             adjustment_change = len(replacement_genes) - 1
             for i in range(source_gene_index, genome_length):
                 input_adjustments[i] += adjustment_change
-            print(input_adjustments)
 
             new_genes += replacement_genes
 
@@ -411,10 +421,10 @@ class Genome(AutoRepr):
 
         return Genome(self.input_shape, self.output_feature_depth, new_genes)
 
-    def _possibly_apply_mutation_to_gene(self, source_gene, mutation_probability):
+    def _possibly_apply_mutation_to_gene(self, source_gene, source_gene_index, mutation_probability):
         if random() > mutation_probability:
             return [source_gene]
-        return source_gene.apply_random_mutation()
+        return source_gene.apply_random_mutation(source_gene_index)
 
     def _apply_input_adjustments(self, genes, input_adjustments):
         new_genes = []
@@ -437,15 +447,10 @@ class Genome(AutoRepr):
         length = randint(min_length, max_length)
         genes = []
         for index in range(length):
-            node_class = choice(cls._instantiable_classes())
-            node = node_class.make_random(index)
-            genes.append(node)
+            gene = Gene.make_random(index)
+            genes.append(gene)
 
         return cls(model_input_shape, model_output_feature_depth, genes)
-
-    @classmethod
-    def _instantiable_classes(cls):
-        return [ConvGene, DepSepConvGene, AvgPoolGene, MaxPoolGene, CatGene, SumGene]
 
 class Individual(nn.Module, AutoRepr):
     def __init__(self, blocks, input_shape, output_indices, output_feature_depth, final_layer = nn.Identity()):
@@ -662,14 +667,14 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader, TensorDataset
 
     batch_size = 10
-    n_genomes = 1
-    min_n_genes = 16
-    max_n_genes = 16
+    n_genomes = 100
+    min_n_genes = 3
+    max_n_genes = 5
     n_generations = 100
-    #elitism_fraction = 0.2
-    elitism_fraction = 0
-    #mutation_probability = 0.003
-    mutation_probability = 0.5
+    elitism_fraction = 0.2
+    #elitism_fraction = 0
+    mutation_probability = 0.003
+    #mutation_probability = 0.5
     #mutation_probability = 100
 
     full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
@@ -690,8 +695,8 @@ if __name__ == "__main__":
 
     population = Population.make_random(n_genomes, (3, 32, 32), 10, min_n_genes, max_n_genes, training_loader, validation_loader, elitism_fraction=elitism_fraction, mutation_probability=mutation_probability)
 
-    saynow(population._genomes)
+    saynow(list(map(lambda genome: genome.to_cache_key(), population._genomes)))
     for i in range(n_generations):
         saynow(f"GENERATION {i}")
         population.breed_next_generation()
-    saynow(population._genomes)
+    saynow(list(map(lambda genome: genome.to_cache_key(), population._genomes)))
