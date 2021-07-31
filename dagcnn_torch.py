@@ -58,7 +58,7 @@ class Gene(AutoRepr):
             return layer_output_shapes[input_index]
 
     def _valid_mutations(self):
-        basic_mutations = [DeletionMutation, InsertionMutation]
+        basic_mutations = [DeletionMutation, InsertionMutation, ChooseInputMutation]
         return basic_mutations + self._class_specific_mutations()
 
     def _class_specific_mutations(self):
@@ -368,6 +368,15 @@ class InsertionMutation(Mutation):
             return [gene, Gene.make_random(index + 1)]
         else:
             return [Gene.make_random(index), gene]
+
+class ChooseInputMutation(Mutation):
+    @classmethod
+    def apply(cls, gene, index):
+        new_input_index = randint(-1, index - 1)
+        position_to_replace = randint(0, gene.arity() - 1)
+        new_gene = gene.copy()
+        new_gene.input_indices[position_to_replace] = new_input_index
+        return [new_gene]
 
 class ChooseKernelSizeMutation(Mutation):
     @classmethod
