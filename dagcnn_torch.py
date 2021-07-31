@@ -2,6 +2,7 @@ from copy import deepcopy
 from datetime import datetime
 from math import floor
 from itertools import chain
+from pickle import dump
 from random import choice, randint, random
 
 import torch
@@ -582,6 +583,9 @@ class Population():
         )
         self._genomes = new_genomes
 
+    def all_fitnesses(self):
+        return {genome : self._fitness(genome) for genome in self._genomes}
+
     def _fitness(self, genome):
         cache_key = genome.to_cache_key()
         if cache_key not in self._fitness_cache:
@@ -667,12 +671,12 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader, TensorDataset
 
     batch_size = 10
-    n_genomes = 100
+    n_genomes = 4
     min_n_genes = 3
     max_n_genes = 5
     n_generations = 100
-    elitism_fraction = 0.2
-    #elitism_fraction = 0
+    #elitism_fraction = 0.2
+    elitism_fraction = 0
     mutation_probability = 0.003
     #mutation_probability = 0.5
     #mutation_probability = 100
@@ -700,3 +704,10 @@ if __name__ == "__main__":
         saynow(f"GENERATION {i}")
         population.breed_next_generation()
     saynow(list(map(lambda genome: genome.to_cache_key(), population._genomes)))
+
+    final_fitnesses = population.all_fitnesses()
+    print(final_fitnesses)
+
+    dump_filename = f"./experiment_results/cifar_10_classifier_{datetime.now().isoformat()}.pickle"
+    with open(dump_filename, "wb") as f:
+        dump(final_fitnesses, f)
