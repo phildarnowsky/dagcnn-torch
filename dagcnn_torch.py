@@ -22,6 +22,9 @@ class Gene(AutoRepr):
         mutation = choice(self._valid_mutations())
         return mutation.apply(self, source_gene_index)
 
+    def copy(self):
+        raise NotImplementedError
+
     def to_cache_key(self):
         parameter_string = ",".join(map(str, self._cache_parameters()))
         input_indices_string = ",".join(map(str, self.input_indices))
@@ -96,6 +99,9 @@ class AbstractConvGene(Gene):
         self.input_indices = input_indices
         self._output_feature_depth = output_feature_depth
         self._kernel_size = kernel_size
+
+    def copy(self):
+        return self.__class__(self.input_indices, self._output_feature_depth, self._kernel_size)
 
     def _class_specific_mutations(self):
         return [ChooseKernelSizeMutation, ChooseOutputFeatureDepthMutation]
@@ -195,10 +201,14 @@ class DepSepConvBlock(Block):
     def output_shape(self):
         return (self._output_feature_depth, self._input_shape[1], self._input_shape[2]) 
 
-class PoolGene(Gene):
+class UnparametrizedGene(Gene):
     def __init__(self, input_indices):
         self.input_indices = input_indices
 
+    def copy(self):
+        return self.__class__(self.input_indices)
+
+class PoolGene(UnparametrizedGene):
     def to_block(self, model_input_shape, layer_output_shapes):
         input_shape = self._get_input_shape(self.input_indices[0], model_input_shape, layer_output_shapes)
         return self._block_class()(self.input_indices, input_shape)
@@ -271,10 +281,7 @@ class MaxPoolBlock(PoolBlock):
     def _layer_class(self):
         return nn.MaxPool2d
 
-class CatGene(Gene):
-    def __init__(self, input_indices):
-        self.input_indices = input_indices
-
+class CatGene(UnparametrizedGene):
     def to_block(self, model_input_shape, layer_output_shapes):
         input_shapes = self._get_input_shapes(model_input_shape, layer_output_shapes)
         return CatBlock(self.input_indices, input_shapes)
@@ -309,10 +316,7 @@ class CatBlock(Block):
         [padded_input1, padded_input2] = match_shapes([input1, input2], match_channels=False)
         return torch.cat((padded_input1, padded_input2), 1)
 
-class SumGene(Gene):
-    def __init__(self, input_indices):
-        self.input_indices = input_indices
-
+class SumGene(UnparametrizedGene):
     def to_block(self, model_input_shape, layer_output_shapes):
         input_shapes = self._get_input_shapes(model_input_shape, layer_output_shapes)
         return SumBlock(self.input_indices, input_shapes)
@@ -369,13 +373,17 @@ class ChooseKernelSizeMutation(Mutation):
     @classmethod
     def apply(cls, gene, _):
         new_kernel_size = choice(gene._valid_kernel_sizes())
-        return [gene.__class__(gene.input_indices, gene._output_feature_depth, new_kernel_size)]
+        new_gene = gene.copy()
+        new_gene._kernel_size = new_kernel_size
+        return [new_gene]
 
 class ChooseOutputFeatureDepthMutation(Mutation):
     @classmethod
     def apply(cls, gene, _):
         new_output_feature_depth = choice(gene._valid_output_feature_depths())
-        return [gene.__class__(gene.input_indices, gene._output_feature_depth, new_output_feature_depth)]
+        new_gene = gene.copy()
+        new_gene._output_feature_depth = new_output_feature_depth
+        return [new_gene]
 
 class Genome(AutoRepr):
     def __init__(self, input_shape, output_feature_depth, genes):
@@ -729,6 +737,6 @@ if __name__ == "__main__":
     final_fitnesses = population.all_fitnesses()
     saynow("AND DONE!")
 
-    dump_filename = f"./experiment_results/cifar_10_classifier_{datetime.now().isoformat()}.pickle"
-    with open(dump_filename, "wb") as f:
-        dump(final_fitnesses, f)
+#   dump_filename = f"./experiment_results/cifar_10_classifier_{datetime.now().isoformat()}.pickle"
+#   with open(dump_filename, "wb") as f:
+#       dump(final_fitnesses, f)
