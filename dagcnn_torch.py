@@ -746,6 +746,6 @@ if __name__ == "__main__":
     final_fitnesses = population.all_fitnesses()
     saynow("AND DONE!")
 
-#   dump_filename = f"./experiment_results/cifar_10_classifier_{datetime.now().isoformat()}.pickle"
-#   with open(dump_filename, "wb") as f:
-#       dump(final_fitnesses, f)
+    dump_filename = f"./experiment_results/cifar_10_classifier_{datetime.now().isoformat()}.pickle"
+    with open(dump_filename, "wb") as f:
+        dump(final_fitnesses, f)
