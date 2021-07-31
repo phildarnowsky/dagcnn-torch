@@ -91,12 +91,31 @@ class Block(nn.Module):
     def forward(self, input):
         return self._net(input)
 
-class ConvGene(Gene):
+class AbstractConvGene(Gene):
     def __init__(self, input_indices, output_feature_depth, kernel_size):
         self.input_indices = input_indices
         self._output_feature_depth = output_feature_depth
         self._kernel_size = kernel_size
 
+    def _class_specific_mutations(self):
+        return [ChooseKernelSizeMutation, ChooseOutputFeatureDepthMutation]
+
+    @classmethod
+    def make_random(cls, index):
+        input_indices = cls._choose_input_indices(index)
+        kernel_size = choice(cls._valid_kernel_sizes())
+        output_feature_depth = choice(cls._valid_output_feature_depths())
+        return cls(input_indices, output_feature_depth, kernel_size)
+
+    @classmethod
+    def _valid_kernel_sizes(cls):
+        raise NotImplementedError
+
+    @classmethod
+    def _valid_output_feature_depths(cls):
+        return [32, 64, 128, 256]
+
+class ConvGene(AbstractConvGene):
     def to_block(self, model_input_shape, layer_output_shapes):
         input_shape = self._get_input_shape(self.input_indices[0], model_input_shape, layer_output_shapes)
         return ConvBlock(self.input_indices, input_shape, self._output_feature_depth, self._kernel_size)
@@ -115,11 +134,8 @@ class ConvGene(Gene):
         return 1
 
     @classmethod
-    def make_random(cls, index):
-        input_indices = cls._choose_input_indices(index)
-        kernel_size = choice([1, 3])
-        output_feature_depth = choice([32, 64, 128, 256])
-        return cls(input_indices, output_feature_depth, kernel_size)
+    def _valid_kernel_sizes(cls):
+        return([1, 3])
 
 class ConvBlock(Block):
     def __init__(self, input_indices, input_shape, output_feature_depth, kernel_size):
@@ -138,12 +154,7 @@ class ConvBlock(Block):
     def output_shape(self):
         return (self._output_feature_depth, self._input_shape[1], self._input_shape[2]) 
 
-class DepSepConvGene(Gene):
-    def __init__(self, input_indices, output_feature_depth, kernel_size):
-        self.input_indices = input_indices
-        self._output_feature_depth = output_feature_depth
-        self._kernel_size = kernel_size
-
+class DepSepConvGene(AbstractConvGene):
     def to_block(self, model_input_shape, layer_output_shapes):
         input_shape = self._get_input_shape(self.input_indices[0], model_input_shape, layer_output_shapes)
         return DepSepConvBlock(self.input_indices, input_shape, self._output_feature_depth, self._kernel_size)
@@ -162,11 +173,8 @@ class DepSepConvGene(Gene):
         return 1
 
     @classmethod
-    def make_random(cls, index):
-        input_indices = cls._choose_input_indices(index)
-        kernel_size = choice([3, 5])
-        output_feature_depth = choice([32, 64, 128, 256])
-        return cls(input_indices, output_feature_depth, kernel_size)
+    def _valid_kernel_sizes(cls):
+        return([3, 5])
 
 class DepSepConvBlock(Block):
     def __init__(self, input_indices, input_shape, output_feature_depth, kernel_size):
@@ -356,6 +364,18 @@ class InsertionMutation(Mutation):
             return [gene, Gene.make_random(index + 1)]
         else:
             return [Gene.make_random(index), gene]
+
+class ChooseKernelSizeMutation(Mutation):
+    @classmethod
+    def apply(cls, gene, _):
+        new_kernel_size = choice(gene._valid_kernel_sizes())
+        return [gene.__class__(gene.input_indices, gene._output_feature_depth, new_kernel_size)]
+
+class ChooseOutputFeatureDepthMutation(Mutation):
+    @classmethod
+    def apply(cls, gene, _):
+        new_output_feature_depth = choice(gene._valid_output_feature_depths())
+        return [gene.__class__(gene.input_indices, gene._output_feature_depth, new_output_feature_depth)]
 
 class Genome(AutoRepr):
     def __init__(self, input_shape, output_feature_depth, genes):
@@ -671,12 +691,12 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader, TensorDataset
 
     batch_size = 10
-    n_genomes = 4
+    n_genomes = 100
     min_n_genes = 3
     max_n_genes = 5
     n_generations = 100
-    #elitism_fraction = 0.2
-    elitism_fraction = 0
+    elitism_fraction = 0.2
+    #elitism_fraction = 0
     mutation_probability = 0.003
     #mutation_probability = 0.5
     #mutation_probability = 100
@@ -705,8 +725,9 @@ if __name__ == "__main__":
         population.breed_next_generation()
     saynow(list(map(lambda genome: genome.to_cache_key(), population._genomes)))
 
+    saynow("COMPUTING ALL FITNESSES FOR FINAL GENERATION")
     final_fitnesses = population.all_fitnesses()
-    print(final_fitnesses)
+    saynow("AND DONE!")
 
     dump_filename = f"./experiment_results/cifar_10_classifier_{datetime.now().isoformat()}.pickle"
     with open(dump_filename, "wb") as f:
