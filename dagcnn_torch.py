@@ -709,14 +709,11 @@ if __name__ == "__main__":
 
     batch_size = 10
     n_genomes = 100
-    min_n_genes = 3
-    max_n_genes = 5
+    min_n_genes = 6
+    max_n_genes = 10
     n_generations = 100
     elitism_fraction = 0.2
-    #elitism_fraction = 0
     mutation_probability = 0.003
-    #mutation_probability = 0.5
-    #mutation_probability = 100
 
     full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
     full_training_data_mean = full_training_data.mean()
