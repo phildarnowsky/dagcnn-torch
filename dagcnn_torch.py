@@ -709,8 +709,8 @@ if __name__ == "__main__":
 
     batch_size = 10
     n_genomes = 100
-    min_n_genes = 6
-    max_n_genes = 10
+    min_n_genes = 11
+    max_n_genes = 15
     n_generations = 100
     elitism_fraction = 0.2
     mutation_probability = 0.003
