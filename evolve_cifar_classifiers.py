@@ -4,6 +4,7 @@ from pickle import dump
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
+from dagcnn_torch.grid_search import GridSearch
 from dagcnn_torch.population import Population
 
 def saynow(text):
@@ -42,17 +43,30 @@ hyperparameters = {
     'mutation_probability': mutation_probability
 }
 
-population = Population.make_random((3, 32, 32), 10, training_loader, validation_loader, **hyperparameters)
+grid_search = GridSearch(
+    [
+        [['min_n_genes', 'max_n_genes'], [1, 2], [3, 4], [5, 6]],
+        [['n_genomes'], [2], [3]],
+        [['std_threshold'], [0.001]]
+    ]
+)
 
-generation_start_callback = lambda population: saynow(f"GENERATION {population.generation_index}")
-population.breed(generation_start_callback)
+hyperparameter_combos = grid_search.hyperparameter_combos()
+saynow(hyperparameter_combos)
+n_hyperparameter_combos = len(hyperparameter_combos)
 
-saynow("COMPUTING ALL FITNESSES FOR FINAL GENERATION")
-final_fitnesses = population.all_fitnesses()
-saynow("AND DONE!")
+for (population_index, hyperparameters) in enumerate(hyperparameter_combos):
+    population = Population.make_random((3, 32, 32), 10, training_loader, validation_loader, **hyperparameters)
 
-dump_filename = f"./experiment_results/cifar_10_classifier_{datetime.now().isoformat()}.pickle"
-dump_payload = {'fitnesses': final_fitnesses, 'hyperparameters': hyperparameters}
+    generation_start_callback = lambda population: saynow(f"POPULATION {population_index} OF {n_hyperparameter_combos}, GENERATION {population.generation_index}")
+    population.breed(generation_start_callback)
 
-with open(dump_filename, "wb") as f:
-    dump(dump_payload, f)
+    saynow("COMPUTING ALL FITNESSES FOR FINAL GENERATION")
+    final_fitnesses = population.all_fitnesses()
+    saynow("AND DONE!")
+
+    dump_filename = f"./experiment_results/cifar_10_classifier_{datetime.now().isoformat()}.pickle"
+    dump_payload = {'fitnesses': final_fitnesses, 'hyperparameters': hyperparameters}
+
+    with open(dump_filename, "wb") as f:
+        dump(dump_payload, f)
