@@ -15,7 +15,7 @@ min_n_genes = 3
 max_n_genes = 5
 n_generations = 10
 elitism_fraction = 0.2
-mutation_probability = 1.003
+mutation_probability = 0.003
 
 full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
 full_training_data_mean = full_training_data.mean()
@@ -43,17 +43,16 @@ hyperparameters = {
 
 population = Population.make_random((3, 32, 32), 10, training_loader, validation_loader, **hyperparameters)
 
-saynow(list(map(lambda genome: genome.to_cache_key(), population._genomes)))
 for i in range(n_generations):
     saynow(f"GENERATION {i}")
     population.breed_next_generation()
-saynow(list(map(lambda genome: genome.to_cache_key(), population._genomes)))
 
 saynow("COMPUTING ALL FITNESSES FOR FINAL GENERATION")
 final_fitnesses = population.all_fitnesses()
 saynow("AND DONE!")
 
 dump_filename = f"./experiment_results/cifar_10_classifier_{datetime.now().isoformat()}.pickle"
-with open(dump_filename, "wb") as f:
-    dump(final_fitnesses, f)
+dump_payload = {'fitnesses': final_fitnesses, 'hyperparameters': hyperparameters}
 
+with open(dump_filename, "wb") as f:
+    dump(dump_payload, f)
