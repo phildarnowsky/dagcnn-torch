@@ -16,6 +16,7 @@ class Population():
         validation_loader,
         make_optimizer=lambda individual: Adam(individual.parameters()),
         criterion_class=nn.CrossEntropyLoss,
+        n_generations=100,
         elitism_fraction=0.2,
         mean_threshold=0.2,
         std_threshold=0.02,
@@ -27,6 +28,7 @@ class Population():
         self._n_by_breeding = n_genomes - self._n_by_elitism
 
         self._fitness_cache = {}
+        self._n_generations = n_generations
         self._training_loader = training_loader
         self._validation_loader = validation_loader
         self._make_optimizer = make_optimizer
@@ -35,7 +37,20 @@ class Population():
         self._std_threshold = std_threshold
         self._mutation_probability = mutation_probability
 
-    def breed_next_generation(self):
+    def breed(self, generation_start_callback=None, generation_end_callback=None):
+        self.generation_index = 0
+        while self.generation_index < self._n_generations:
+            if generation_start_callback:
+                generation_start_callback(self)
+
+            self._breed_next_generation()
+
+            if generation_end_callback:
+                generation_end_callback(self)
+
+            self.generation_index += 1
+
+    def _breed_next_generation(self):
         new_genomes = []
         for _ in range(0, self._n_by_elitism):
             elite_genome = self._select_by_slack_binary_tournament()
@@ -123,15 +138,29 @@ class Population():
         n_outputs,
         training_loader,
         validation_loader,
+        make_optimizer=lambda individual: Adam(individual.parameters()),
+        criterion_class=nn.CrossEntropyLoss,
         n_genomes=100,
         min_n_genes=10,
         max_n_genes=15,
-        make_optimizer=lambda individual: Adam(individual.parameters()),
-        criterion_class=nn.CrossEntropyLoss,
+        n_generations=100,
         elitism_fraction=0.2,
-        mutation_probability=0.003
+        mutation_probability=0.003,
+        mean_threshold=0.2,
+        std_threshold=0.02
     ):
         genomes = []
         for _ in range(n_genomes):
             genomes.append(Genome.make_random(input_shape, n_outputs, min_n_genes, max_n_genes))
-        return cls(genomes, training_loader, validation_loader, make_optimizer, criterion_class, elitism_fraction=elitism_fraction, mutation_probability=mutation_probability)
+        return cls(
+            genomes,
+            training_loader,
+            validation_loader,
+            make_optimizer,
+            criterion_class,
+            n_generations=n_generations,
+            elitism_fraction=elitism_fraction,
+            mutation_probability=mutation_probability,
+            mean_threshold=mean_threshold,
+            std_threshold=std_threshold
+        )

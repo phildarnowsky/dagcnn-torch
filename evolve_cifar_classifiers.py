@@ -35,6 +35,7 @@ validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=Tru
 
 hyperparameters = {
     'n_genomes': n_genomes,
+    'n_generations': n_generations,
     'min_n_genes': min_n_genes,
     'max_n_genes': max_n_genes,
     'elitism_fraction': elitism_fraction,
@@ -43,9 +44,8 @@ hyperparameters = {
 
 population = Population.make_random((3, 32, 32), 10, training_loader, validation_loader, **hyperparameters)
 
-for i in range(n_generations):
-    saynow(f"GENERATION {i}")
-    population.breed_next_generation()
+generation_start_callback = lambda population: saynow(f"GENERATION {population.generation_index}")
+population.breed(generation_start_callback)
 
 saynow("COMPUTING ALL FITNESSES FOR FINAL GENERATION")
 final_fitnesses = population.all_fitnesses()
