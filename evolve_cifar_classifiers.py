@@ -33,7 +33,15 @@ validation_labels = torch.load("./datasets/cifar-10/processed/validation_labels.
 validation_dataset = TensorDataset(validation_data, validation_labels)
 validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
 
-population = Population.make_random(n_genomes, (3, 32, 32), 10, min_n_genes, max_n_genes, training_loader, validation_loader, elitism_fraction=elitism_fraction, mutation_probability=mutation_probability)
+hyperparameters = {
+    'n_genomes': n_genomes,
+    'min_n_genes': min_n_genes,
+    'max_n_genes': max_n_genes,
+    'elitism_fraction': elitism_fraction,
+    'mutation_probability': mutation_probability
+}
+
+population = Population.make_random((3, 32, 32), 10, training_loader, validation_loader, **hyperparameters)
 
 saynow(list(map(lambda genome: genome.to_cache_key(), population._genomes)))
 for i in range(n_generations):

@@ -119,13 +119,13 @@ class Population():
     @classmethod
     def make_random(
         cls,
-        n_genomes,
         input_shape,
         n_outputs,
-        minimum_length,
-        maximum_length,
         training_loader,
         validation_loader,
+        n_genomes=100,
+        min_n_genes=10,
+        max_n_genes=15,
         make_optimizer=lambda individual: Adam(individual.parameters()),
         criterion_class=nn.CrossEntropyLoss,
         elitism_fraction=0.2,
@@ -133,5 +133,5 @@ class Population():
     ):
         genomes = []
         for _ in range(n_genomes):
-            genomes.append(Genome.make_random(input_shape, n_outputs, minimum_length, maximum_length))
+            genomes.append(Genome.make_random(input_shape, n_outputs, min_n_genes, max_n_genes))
         return cls(genomes, training_loader, validation_loader, make_optimizer, criterion_class, elitism_fraction=elitism_fraction, mutation_probability=mutation_probability)
