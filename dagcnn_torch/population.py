@@ -1,4 +1,4 @@
-from math import floor
+from math import floor, inf
 from random import choice
 
 import torch
@@ -85,26 +85,30 @@ class Population():
         criterion = self._criterion_class()
         optimizer = self._make_optimizer(individual)
 
-        individual.train()
-        for _, (training_examples, training_labels) in enumerate(self._training_loader):
-            training_examples = training_examples.cuda()
-            training_labels = training_labels.cuda()
-            training_predictions = individual(training_examples)
+        try:
+            individual.train()
+            for _, (training_examples, training_labels) in enumerate(self._training_loader):
+                training_examples = training_examples.cuda()
+                training_labels = training_labels.cuda()
+                training_predictions = individual(training_examples)
 
-            training_loss = criterion(training_predictions, training_labels.flatten())
-            optimizer.zero_grad()
-            training_loss.backward()
-            optimizer.step()
+                training_loss = criterion(training_predictions, training_labels.flatten())
+                optimizer.zero_grad()
+                training_loss.backward()
+                optimizer.step()
 
-        individual.eval()
-        with torch.no_grad():
-            for _, (validation_examples, validation_labels) in enumerate(self._validation_loader):
-                validation_examples = validation_examples.cuda()
-                validation_labels = validation_labels.cuda()
-                validation_predictions = individual(validation_examples)
+            individual.eval()
+            with torch.no_grad():
+                for _, (validation_examples, validation_labels) in enumerate(self._validation_loader):
+                    validation_examples = validation_examples.cuda()
+                    validation_labels = validation_labels.cuda()
+                    validation_predictions = individual(validation_examples)
 
-                validation_loss = criterion(validation_predictions, validation_labels.flatten())
-                validation_losses.append(validation_loss.item())
+                    validation_loss = criterion(validation_predictions, validation_labels.flatten())
+                    validation_losses.append(validation_loss.item())
+        except RuntimeError:
+            print("RUNTIME ERROR CAUGHT! ASSUMING OUT OF CUDA MEMORY! INFINITE LOSS! OH NO!")
+            return {'mean': inf, 'std': inf, 'n_parameters': inf}
 
         validation_losses = torch.tensor(validation_losses)
         n_parameters = sum(list(map(lambda parameter: parameter.size().numel(), individual.parameters())))

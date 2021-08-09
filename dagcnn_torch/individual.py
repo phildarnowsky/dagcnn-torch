@@ -32,9 +32,9 @@ class Individual(nn.Module, AutoRepr):
         inputs = []
         for input_index in block.input_indices:
             if input_index == -1:
-                inputs.append(model_input.cuda())
+                inputs.append(model_input)
             else:
-                inputs.append(results[input_index].cuda())
+                inputs.append(results[input_index])
         return inputs
 
     def _make_tail(self, input_shape, final_layer):
@@ -52,8 +52,8 @@ class Individual(nn.Module, AutoRepr):
 
     def _calculate_output_results(self, model_input):
         results = []
-        for _, block in enumerate(self.blocks):
+        for block in self.blocks:
             inputs = self._get_block_inputs(model_input, results, block)
-            result = block(*inputs).cpu()
+            result = block(*inputs)
             results.append(result)
-        return list(map(lambda output_index: results[output_index].cuda(), self.output_indices))
+        return list(map(lambda output_index: results[output_index], self.output_indices))
