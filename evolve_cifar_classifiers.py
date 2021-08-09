@@ -46,9 +46,9 @@ hyperparameters = {
 grid_search = GridSearch(
     [
         [['min_n_genes', 'max_n_genes'], [5, 15], [10, 20], [15, 25], [20, 30]],
-        [['elitism_fraction'], [0.2], [0.3], [0.4], [0.5]],
-        [['mutation_probability'], [0.1], [0.01], [0.001]],
-        [['mean_threshold', 'std_threshold'], [0.1, 0.01], [0.2, 0.02], [0.4, 0.04], [0.8, 0.08], [1.6, 0.16]]
+        [['elitism_fraction'], [0.2], [0.6]],
+        [['mutation_probability'], [0.1], [0.001]],
+        [['mean_threshold', 'std_threshold'], [0.1, 0.01], [0.4, 0.04], [1.6, 0.16]]
     ]
 )
 
