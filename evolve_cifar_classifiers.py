@@ -10,13 +10,7 @@ from dagcnn_torch.population import Population
 def saynow(text):
     print(f"[{datetime.now()}] {text}") 
 
-batch_size = 10
-n_genomes = 4
-min_n_genes = 3
-max_n_genes = 5
-n_generations = 10
-elitism_fraction = 0.2
-mutation_probability = 0.003
+batch_size = 40
 
 full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
 full_training_data_mean = full_training_data.mean()
@@ -33,15 +27,6 @@ validation_data = (validation_data - full_training_data_mean) / full_training_da
 validation_labels = torch.load("./datasets/cifar-10/processed/validation_labels.pt").to(dtype=torch.long)
 validation_dataset = TensorDataset(validation_data, validation_labels)
 validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
-
-hyperparameters = {
-    'n_genomes': n_genomes,
-    'n_generations': n_generations,
-    'min_n_genes': min_n_genes,
-    'max_n_genes': max_n_genes,
-    'elitism_fraction': elitism_fraction,
-    'mutation_probability': mutation_probability
-}
 
 grid_search = GridSearch(
     [
