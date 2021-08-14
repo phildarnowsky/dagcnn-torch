@@ -6,3 +6,4 @@ experiment_results/plots/*
 !experiment_results/plots/.keep
 experiment_results/tables/*
 !experiment_results/tables/.keep
+__pycache__

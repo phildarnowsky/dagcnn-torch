@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader, TensorDataset
 
-from dagcnn_torch import Population
+from dagcnn_torch.population import Population
 
 def saynow(text):
     print(f"[{datetime.now()}] {text}") 
@@ -17,7 +17,7 @@ def normalize_image_data(image_data, full_data):
 def calculate_loss(individual, criterion, loader, optimizer=None):
     running_loss = None
     n_batches = 0
-    for _, (images, labels) in enumerate(loader):
+    for (images, labels) in loader:
         n_batches += 1
         images = images.cuda()
         labels = labels.cuda().flatten()
@@ -45,7 +45,6 @@ def run_epoch(individual, criterion, training_loader, validation_loader, optimiz
     return (pre_training_training_loss.item(), pre_training_validation_loss.item())
 
 if __name__ == "__main__":
-    n_genomes = 100
     n_epochs = 100
     min_genome_length = 30
     max_genome_length = 30
@@ -65,13 +64,14 @@ if __name__ == "__main__":
     validation_dataset = TensorDataset(validation_data, validation_labels)
     validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
 
-    population = Population.make_random(n_genomes, (3, 32, 32), 10, min_genome_length, max_genome_length)
+    population = Population.make_random((3, 32, 32), 10, training_loader, validation_loader, min_n_genes=min_genome_length, max_n_genes=max_genome_length)
     genome_index = 0
     results = []
 
-    for genome in population.genomes:
+    for genome in population._genomes:
         result = [repr(genome)]
 
+        print(genome)
         individual = genome.to_individual()
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(individual.parameters())
