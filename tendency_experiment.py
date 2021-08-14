@@ -46,8 +46,7 @@ def run_epoch(individual, criterion, training_loader, validation_loader, optimiz
 
 if __name__ == "__main__":
     n_epochs = 100
-    min_genome_length = 30
-    max_genome_length = 30
+    genome_lengths = [5, 10, 15, 20, 25, 30]
     batch_size = 50
 
     full_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
@@ -64,45 +63,45 @@ if __name__ == "__main__":
     validation_dataset = TensorDataset(validation_data, validation_labels)
     validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
 
-    population = Population.make_random((3, 32, 32), 10, training_loader, validation_loader, min_n_genes=min_genome_length, max_n_genes=max_genome_length)
-    genome_index = 0
-    results = []
+    for genome_length in genome_lengths:
+        population = Population.make_random((3, 32, 32), 10, training_loader, validation_loader, min_n_genes=genome_length, max_n_genes=genome_length)
+        genome_index = 0
+        results = []
 
-    for genome in population._genomes:
-        result = [repr(genome)]
+        for genome in population._genomes:
+            result = [repr(genome)]
 
-        print(genome)
-        individual = genome.to_individual()
-        criterion = nn.CrossEntropyLoss()
-        optimizer = Adam(individual.parameters())
+            individual = genome.to_individual()
+            criterion = nn.CrossEntropyLoss()
+            optimizer = Adam(individual.parameters())
 
-        saynow(f"CALCULATING PRETRAINING LOSS FOR GENOME {genome_index}")
-        (training_loss, validation_loss) = run_epoch(individual, criterion, training_loader, validation_loader, optimizer)
-        training_results = [training_loss]
-        validation_results = [validation_loss]
-        saynow(training_loss)
-
-        for epoch_index in range(n_epochs):
-            saynow(f"{genome_index}/{epoch_index}")
+            saynow(f"CALCULATING PRETRAINING LOSS FOR GENOME {genome_index}")
             (training_loss, validation_loss) = run_epoch(individual, criterion, training_loader, validation_loader, optimizer)
-            training_results.append(training_loss)
-            validation_results.append(validation_loss)
+            training_results = [training_loss]
+            validation_results = [validation_loss]
             saynow(training_loss)
 
-        result += training_results
-        result += validation_results
+            for epoch_index in range(n_epochs):
+                saynow(f"{genome_index}/{epoch_index} (LENGTH {genome_length})")
+                (training_loss, validation_loss) = run_epoch(individual, criterion, training_loader, validation_loader, optimizer)
+                training_results.append(training_loss)
+                validation_results.append(validation_loss)
+                saynow(training_loss)
 
-        results.append(result)            
-        genome_index += 1
+            result += training_results
+            result += validation_results
 
-    filename = f"./experiment_results/trajectory_{datetime.now().isoformat()}.csv"
-    header = ["Genome"]
-    header += list(map(lambda n: f"Evolution loss after {n} epochs", range(n_epochs + 1)))
-    header += list(map(lambda n: f"Validation loss after {n} epochs", range(n_epochs + 1)))
+            results.append(result)            
+            genome_index += 1
 
-    with open(filename, "w") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(header)
-        writer.writerows(results)
+        filename = f"./experiment_results/trajectory_{datetime.now().isoformat()}.csv"
+        header = ["Genome"]
+        header += list(map(lambda n: f"Evolution loss after {n} epochs", range(n_epochs + 1)))
+        header += list(map(lambda n: f"Validation loss after {n} epochs", range(n_epochs + 1)))
+
+        with open(filename, "w") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(header)
+            writer.writerows(results)
 
 
