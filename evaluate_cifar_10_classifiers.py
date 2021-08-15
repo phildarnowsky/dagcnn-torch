@@ -92,4 +92,4 @@ if __name__ == "__main__":
 
         dump_filename = f"./experiment_results/cifar_10_classifier_accuracy_{datetime.now().isoformat()}.pickle"
         with open(dump_filename, "wb") as f:
-            dump(accuracy_cache, f)
+            pickle.dump(accuracy_cache, f)
