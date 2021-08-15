@@ -56,13 +56,7 @@ if __name__ == "__main__":
 
     n_epochs = 50
     checking_interval = 5
-    batch_size = 10
-
-    input_filename = sys.argv[1]
-    with open(input_filename, "rb") as f:
-        genome_stats = pickle.load(f)
-    genomes = list(genome_stats.keys())
-    accuracy_cache = {}
+    batch_size = 500
 
     full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
     full_training_data_mean = full_training_data.mean()
@@ -80,14 +74,22 @@ if __name__ == "__main__":
     test_dataset = TensorDataset(test_data, test_labels)
     test_loader = DataLoader(test_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
 
-    for genome_index, genome in enumerate(genomes):
-        saynow(f"GENOME {genome_index}/{len(genomes)}")
-        cache_key = genome.to_cache_key()
-        if cache_key not in accuracy_cache:
-            accuracy_cache[cache_key] = evaluate_accuracy(genome, n_epochs, checking_interval, training_loader, test_loader)
 
-    saynow(accuracy_cache)
+    input_filenames = sys.argv[1:]
+    for run_index, input_filename in enumerate(input_filenames):
+        with open(input_filename, "rb") as f:
+            genome_stats = pickle.load(f)['fitnesses']
+        genomes = list(genome_stats.keys())
+        accuracy_cache = {}
 
-    dump_filename = f"./experiment_results/cifar_10_classifier_accuracy_{datetime.now().isoformat()}.pickle"
-    with open(dump_filename, "wb") as f:
-        dump(accuracy_cache, f)
+        for genome_index, genome in enumerate(genomes):
+            saynow(f"GENOME {run_index}/{genome_index}/{len(genomes)}")
+            cache_key = genome.to_cache_key()
+            if cache_key not in accuracy_cache:
+                accuracy_cache[cache_key] = evaluate_accuracy(genome, n_epochs, checking_interval, training_loader, test_loader)
+
+        saynow(accuracy_cache)
+
+        dump_filename = f"./experiment_results/cifar_10_classifier_accuracy_{datetime.now().isoformat()}.pickle"
+        with open(dump_filename, "wb") as f:
+            dump(accuracy_cache, f)
