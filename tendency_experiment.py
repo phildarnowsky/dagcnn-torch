@@ -46,7 +46,8 @@ def run_epoch(individual, criterion, training_loader, validation_loader, optimiz
 
 if __name__ == "__main__":
     n_epochs = 100
-    genome_lengths = [5, 10, 15, 20, 25, 30]
+#    genome_lengths = [5, 10, 15, 20, 25, 30]
+    genome_lengths = [25, 30]
     batch_size = 50
 
     full_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
