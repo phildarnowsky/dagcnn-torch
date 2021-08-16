@@ -93,7 +93,24 @@ if __name__ == "__main__":
 
         saynow(accuracy_cache)
 
+        accuracy_hashes = list(accuracy_cache.values())
+        accuracy_list = []
+        for accuracy_hash in accuracy_hashes:
+            for key in accuracy_hash:
+                if key != 0:
+                    accuracy_list.append(accuracy_hash[key])
+
+        print(accuracy_list)
+        accuracies = torch.tensor(accuracy_list)
+        n_distinct = len(accuracy_cache)
+        max_accuracy = accuracies.max().item()
+        avg_accuracy = accuracies.mean().item()
+        median_accuracy = accuracies.median().item()
+        accuracy_std = accuracies.std().item()
+        statistics = {'n_distinct': n_distinct, 'max_accuracy': max_accuracy, 'avg_accuracy': avg_accuracy, 'median_accuracy': median_accuracy, 'accuracy_std': accuracy_std}
+
         dump_filename = f"./experiment_results/cifar_10_classifier_accuracy_{datetime.now().isoformat()}.pickle"
-        output_data = {'hyperparameters': hyperparameters, 'accuracies': accuracy_cache}
+        output_data = {'hyperparameters': hyperparameters, 'accuracies': accuracy_cache, 'statistics': statistics}
+        saynow(output_data)
         with open(dump_filename, "wb") as f:
             pickle.dump(output_data, f)
