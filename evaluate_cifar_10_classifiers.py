@@ -78,7 +78,10 @@ if __name__ == "__main__":
     input_filenames = sys.argv[1:]
     for run_index, input_filename in enumerate(input_filenames):
         with open(input_filename, "rb") as f:
-            genome_stats = pickle.load(f)['fitnesses']
+            input_data = pickle.load(f)
+            genome_stats = input_data['fitnesses']
+            hyperparameters = input_data['hyperparameters']
+
         genomes = list(genome_stats.keys())
         accuracy_cache = {}
 
@@ -91,5 +94,6 @@ if __name__ == "__main__":
         saynow(accuracy_cache)
 
         dump_filename = f"./experiment_results/cifar_10_classifier_accuracy_{datetime.now().isoformat()}.pickle"
+        output_data = {'hyperparameters': hyperparameters, 'accuracies': accuracy_cache}
         with open(dump_filename, "wb") as f:
-            pickle.dump(accuracy_cache, f)
+            pickle.dump(output_data, f)
