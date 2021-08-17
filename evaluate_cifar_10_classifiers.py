@@ -100,7 +100,7 @@ if __name__ == "__main__":
                 if key != 0:
                     accuracy_list.append(accuracy_hash[key])
 
-        print(accuracy_list)
+        print(sorted(accuracy_list))
         accuracies = torch.tensor(accuracy_list)
         n_distinct = len(accuracy_cache)
         max_accuracy = accuracies.max().item()
