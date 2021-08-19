@@ -1,0 +1,1 @@
+time python evaluate_cifar_10_classifiers.py ./experiment_results/cifar_10_classifier_2021-08-16T19:45:01.981050.pickle ./experiment_results/cifar_10_classifier_2021-08-17T04:09:29.401774.pickle ./experiment_results/cifar_10_classifier_2021-08-17T13:15:23.496513.pickle ./experiment_results/cifar_10_classifier_2021-08-17T20:09:41.701226.pickle

@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     n_epochs = 50
     checking_interval = 5
-    batch_size = 250
+    batch_size = 125
 
     full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
     full_training_data_mean = full_training_data.mean()
