@@ -1,5 +1,9 @@
+import numpy as np
 import pickle
 import sys
+
+def fp(num):
+    return np.format_float_positional(num, trim='-')
 
 output_filename = sys.argv[1]
 input_filenames = sys.argv[2:]
@@ -12,7 +16,7 @@ for filename in input_filenames:
 by_max_accuracy = sorted(results, key=lambda x: -x['statistics']['max_accuracy'])
 table_lines = list(
     map(
-        lambda x: "{max_accuracy:.3f} & {min_n_genes} & {max_n_genes} & {elitism_fraction} & {mutation_probability} & {mean_threshold} & {std_threshold} \\\\ ".format(max_accuracy=x['statistics']['max_accuracy'], min_n_genes=x['hyperparameters']['min_n_genes'], max_n_genes=x['hyperparameters']['max_n_genes'], elitism_fraction=x['hyperparameters']['elitism_fraction'], mutation_probability=x['hyperparameters']['mutation_probability'], mean_threshold=x['hyperparameters']['mean_threshold'], std_threshold=x['hyperparameters']['std_threshold']),
+        lambda x: "{max_accuracy:.3f} & {min_n_genes} & {max_n_genes} & {elitism_fraction} & {mutation_probability} & {mean_threshold} & {std_threshold} \\\\ ".format(max_accuracy=x['statistics']['max_accuracy'], min_n_genes=x['hyperparameters']['min_n_genes'], max_n_genes=x['hyperparameters']['max_n_genes'], elitism_fraction=fp(x['hyperparameters']['elitism_fraction']), mutation_probability=fp(x['hyperparameters']['mutation_probability']), mean_threshold=fp(x['hyperparameters']['mean_threshold']), std_threshold=fp(x['hyperparameters']['std_threshold'])),
         by_max_accuracy
     )
 )
