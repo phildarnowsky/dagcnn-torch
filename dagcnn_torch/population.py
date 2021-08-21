@@ -107,7 +107,7 @@ class Population():
                     validation_loss = criterion(validation_predictions, validation_labels.flatten())
                     validation_losses.append(validation_loss.item())
         except RuntimeError:
-            print("RUNTIME ERROR CAUGHT! ASSUMING OUT OF CUDA MEMORY! INFINITE LOSS! OH NO!")
+            saynow("RUNTIME ERROR CAUGHT! ASSUMING OUT OF CUDA MEMORY! INFINITE LOSS! OH NO!")
             return {'mean': inf, 'std': inf, 'n_parameters': inf}
 
         validation_losses = torch.tensor(validation_losses)
