@@ -30,9 +30,9 @@ validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=Tru
 
 grid_search = GridSearch(
     [
-        [['min_n_genes', 'max_n_genes'], [10, 20]],
+        [['min_n_genes', 'max_n_genes'], [10, 20], [20, 30], [30, 40]],
         [['elitism_fraction'], [0.05], [0.1], [0.2], [0.4], [0.8]],
-        [['mutation_probability'], [0.1], [0.01], [0.001]],
+        [['mutation_probability'], [0.1]],
         [['mean_threshold', 'std_threshold'], [0.01, 0.001]]
     ]
 )
