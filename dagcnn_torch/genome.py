@@ -48,8 +48,8 @@ class Genome(AutoRepr):
             block = gene.to_block(self.input_shape, output_shapes)
             blocks.append(block)
             output_shapes.append(block.output_shape())
-            output_indices = sorted(output_indices.difference(set(gene.input_indices)))
-        return Individual(blocks, self.input_shape, output_indices, self.output_feature_depth)
+            output_indices = output_indices.difference(set(gene.input_indices))
+        return Individual(blocks, self.input_shape, sorted(output_indices), self.output_feature_depth)
 
     def apply_mutations(self, mutation_probability):
         genome_length = len(self.genes)
