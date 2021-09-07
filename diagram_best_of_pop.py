@@ -23,7 +23,10 @@ for genome in best_pop['accuracies']:
         best_genome = genome
         best_accuracy = best_genome_accuracy
 
-genes = re.split('(?<=\))', genome)
+print(best_genome)
+print(best_accuracy)
+
+genes = re.split('(?<=\))', best_genome)
 genes.pop()
 
 nodes = []
