@@ -48,7 +48,8 @@ for (gene_index, gene) in enumerate(genes):
         label = "MaxPool"
     if operation == "K":
         label = "Cat"
-    # TK where is sum?
+    if operation == "S":
+        label = "+"
 
     nodes.append(f"{gene_index} [label=\"{label}\"]")
     for input in inputs:
