@@ -21,6 +21,6 @@ class DepSepConvGene(AbstractConvGene):
 
     @classmethod
     def _valid_kernel_sizes(cls):
-        return([3, 5])
+        return([3])
 
 

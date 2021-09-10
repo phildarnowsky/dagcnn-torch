@@ -10,7 +10,7 @@ from dagcnn_torch.population import Population
 def saynow(text):
     print(f"[{datetime.now()}] {text}") 
 
-batch_size = 40
+batch_size = 32
 
 full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
 full_training_data_mean = full_training_data.mean()
@@ -30,9 +30,9 @@ validation_loader = DataLoader(validation_dataset, shuffle=False, pin_memory=Tru
 
 grid_search = GridSearch(
     [
-        [['min_n_genes', 'max_n_genes'], [30, 40]],
-        [['elitism_fraction'], [0.05], [0.1], [0.2], [0.4], [0.8]],
-        [['mutation_probability'], [0.1]],
+        [['min_n_genes', 'max_n_genes'], [1, 1]],
+        [['elitism_fraction'], [0.05], [0.1], [0.2], [0.4]],
+        [['mutation_probability'], [0.05], [0.1]],
         [['mean_threshold', 'std_threshold'], [0.01, 0.001]]
     ]
 )
