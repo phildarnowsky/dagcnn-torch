@@ -12,4 +12,4 @@ class GenePicker:
         return choice(self._instantiable_classes())
     
     def _instantiable_classes(self):
-        return [ConvGene, DepSepConvGene, MaxPoolGene]
+        return [ConvGene, DepSepConvGene, MaxPoolGene, SumGene]
