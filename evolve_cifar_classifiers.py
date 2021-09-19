@@ -32,7 +32,7 @@ grid_search = GridSearch(
     [
         [['min_n_genes', 'max_n_genes'], [1, 1]],
         [['elitism_fraction'], [0.05], [0.1], [0.2], [0.4]],
-        [['mutation_probability'], [0.05], [0.1]],
+        [['mutation_probability'], [0.05], [0.1], [0.2], [0.4]],
         [['mean_threshold', 'std_threshold'], [0.01, 0.001]]
     ]
 )
