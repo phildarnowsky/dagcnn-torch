@@ -11,6 +11,12 @@ class Genome(AutoRepr):
         self.input_shape = input_shape
         self.output_feature_depth = output_feature_depth
         self.genes = genes
+        self.age = 0
+
+    def aged(self):
+        copy = Genome(self.input_shape, self.output_feature_depth, self.genes)
+        copy.age = self.age + 1
+        return(copy)
 
     def crossover(self, other):
         n_genes = len(self.genes)
@@ -55,9 +61,14 @@ class Genome(AutoRepr):
         genome_length = len(self.genes)
         new_genes = []
         input_adjustments = [0] * genome_length
+        any_mutations_applied = False
 
         for source_gene_index, source_gene in enumerate(self.genes):
             replacement_genes = self._possibly_apply_mutation_to_gene(source_gene, source_gene_index, mutation_probability)
+            if replacement_genes:
+                any_mutations_applied = True
+            else:
+                replacement_genes = [source_gene]
             replacement_genes = self._apply_input_adjustments(replacement_genes, input_adjustments)
 
             adjustment_change = len(replacement_genes) - 1
@@ -69,11 +80,14 @@ class Genome(AutoRepr):
         if(new_genes == []):
             new_genes = self.genes
 
-        return Genome(self.input_shape, self.output_feature_depth, new_genes)
+        if any_mutations_applied:
+            return Genome(self.input_shape, self.output_feature_depth, new_genes)
+        else:
+            return self
 
     def _possibly_apply_mutation_to_gene(self, source_gene, source_gene_index, mutation_probability):
         if random() > mutation_probability:
-            return [source_gene]
+            return None
         return source_gene.apply_random_mutation(source_gene_index)
 
     def _apply_input_adjustments(self, genes, input_adjustments):

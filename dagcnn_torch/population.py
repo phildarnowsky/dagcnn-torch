@@ -53,12 +53,12 @@ class Population():
     def _breed_next_generation(self):
         new_genomes = []
         for _ in range(0, self._n_by_elitism):
-            elite_genome = self._select_by_slack_binary_tournament()
-            new_genomes.append(elite_genome)
+            elite_genome = self._select_by_slack_oversampled_ageist_tournament()
+            new_genomes.append(elite_genome.aged())
 
         for _ in range(0, self._n_by_breeding):
-            parent1 = self._select_by_slack_binary_tournament()
-            parent2 = self._select_by_slack_binary_tournament()
+            parent1 = self._select_by_slack_oversampled_ageist_tournament()
+            parent2 = self._select_by_slack_oversampled_ageist_tournament()
             child = parent1.crossover(parent2)
             new_genomes.append(child)
 
@@ -107,7 +107,7 @@ class Population():
                     validation_loss = criterion(validation_predictions, validation_labels.flatten())
                     validation_losses.append(validation_loss.item())
         except RuntimeError:
-            saynow("RUNTIME ERROR CAUGHT! ASSUMING OUT OF CUDA MEMORY! INFINITE LOSS! OH NO!")
+            print("RUNTIME ERROR CAUGHT! ASSUMING OUT OF CUDA MEMORY! INFINITE LOSS! OH NO!")
             return {'mean': inf, 'std': inf, 'n_parameters': inf}
 
         validation_losses = torch.tensor(validation_losses)
@@ -115,9 +115,10 @@ class Population():
 
         return {'mean': validation_losses.mean().item(), 'std': validation_losses.std().item(), 'n_parameters': n_parameters}
 
-    def _select_by_slack_binary_tournament(self):
-        genome1 = choice(self._genomes)
-        genome2 = choice(self._genomes)
+    def _select_by_slack_oversampled_ageist_tournament(self):
+        genomes = [choice(self._genomes), choice(self._genomes), choice(self._genomes)]
+        young_genomes = sorted(genomes, key=lambda genome: genome.age)[0:2]
+        [genome1, genome2] = young_genomes
 
         fitness1 = self._fitness(genome1)
         fitness2 = self._fitness(genome2)

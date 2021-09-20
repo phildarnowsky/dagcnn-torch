@@ -44,10 +44,11 @@ class Individual(nn.Module, AutoRepr):
             dummy_output_results = self._calculate_output_results(dummy_input)
             output_shape = largest_dimensions(dummy_output_results)
         (input_feature_depth, height, width) = output_shape
+        gap_layer = nn.AvgPool2d(kernel_size=(height, width)).cuda()
         flatten_layer = nn.Flatten()
-        fc_layer = nn.Linear(input_feature_depth * height * width, self.output_feature_depth).cuda()
+        fc_layer = nn.Linear(input_feature_depth, self.output_feature_depth).cuda()
         kaiming_normal_(fc_layer.weight)
-        return nn.Sequential(flatten_layer, fc_layer, final_layer).cuda()
+        return nn.Sequential(gap_layer, flatten_layer, fc_layer, final_layer).cuda()
 
     def _calculate_output_results(self, model_input):
         results = []
