@@ -20,7 +20,8 @@ class Population():
         elitism_fraction=0.2,
         mean_threshold=0.2,
         std_threshold=0.02,
-        mutation_probability=0.003
+        mutation_probability=0.003,
+        ageism_factor=1
     ):
         self._genomes = genomes
         n_genomes = len(genomes)
@@ -36,6 +37,7 @@ class Population():
         self._mean_threshold = mean_threshold
         self._std_threshold = std_threshold
         self._mutation_probability = mutation_probability
+        self._ageism_factor = ageism_factor
 
     def breed(self, generation_start_callback=None, generation_end_callback=None):
         self.generation_index = 0
@@ -117,7 +119,7 @@ class Population():
 
     def _select_by_slack_oversampled_ageist_tournament(self):
         genomes = [choice(self._genomes), choice(self._genomes), choice(self._genomes)]
-        young_genomes = sorted(genomes, key=lambda genome: genome.age)[0:2]
+        young_genomes = sorted(genomes, key=lambda genome: floor(genome.age * self._ageism_factor))[0:2]
         [genome1, genome2] = young_genomes
 
         fitness1 = self._fitness(genome1)
@@ -152,7 +154,8 @@ class Population():
         elitism_fraction=0.2,
         mutation_probability=0.003,
         mean_threshold=0.2,
-        std_threshold=0.02
+        std_threshold=0.02,
+        ageism_factor=1
     ):
         genomes = []
         for _ in range(n_genomes):
@@ -167,5 +170,6 @@ class Population():
             elitism_fraction=elitism_fraction,
             mutation_probability=mutation_probability,
             mean_threshold=mean_threshold,
-            std_threshold=std_threshold
+            std_threshold=std_threshold,
+            ageism_factor=ageism_factor
         )
