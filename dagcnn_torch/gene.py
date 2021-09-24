@@ -46,7 +46,7 @@ class Gene(AutoRepr):
             return layer_output_shapes[input_index]
 
     def _valid_mutations(self):
-        basic_mutations = [InsertionMutation, ChooseInputMutation]
+        basic_mutations = [DeletionMutation, InsertionMutation, ChooseInputMutation]
         return basic_mutations + self._class_specific_mutations()
 
     def _class_specific_mutations(self):

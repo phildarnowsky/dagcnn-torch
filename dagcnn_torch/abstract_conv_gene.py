@@ -14,7 +14,7 @@ class AbstractConvGene(Gene):
         return self.__class__(self.input_indices, self._output_feature_depth, self._kernel_size)
 
     def _class_specific_mutations(self):
-        return [ChooseOutputFeatureDepthMutation]
+        return [ChooseKernelSizeMutation, ChooseOutputFeatureDepthMutation]
 
     @classmethod
     def make_random(cls, index):

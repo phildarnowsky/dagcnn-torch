@@ -21,4 +21,4 @@ class ConvGene(AbstractConvGene):
 
     @classmethod
     def _valid_kernel_sizes(cls):
-        return([3])
+        return([1, 3])
