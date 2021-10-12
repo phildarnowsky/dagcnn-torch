@@ -39,7 +39,7 @@ def evaluate_accuracy(genome, n_epochs, checking_interval, training_loader, test
     for epoch_index in range(1, n_epochs + 1):
         train_once(net, training_loader, criterion, optimizer)
         if epoch_index % checking_interval == 0:
-            saynow(f"EPOCH {epoch_index}")
+            saynow(f"EPOCH {epoch_index}: {accuracies}")
             accuracies[epoch_index] = evaluate_on_test_set(net, test_loader)
 
     return accuracies
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     n_epochs = 50
     checking_interval = 5
-    batch_size = 64
+    batch_size = 32
 
     full_training_data = torch.load("./datasets/cifar-10/raw/all_training_data.pt").to(dtype=torch.float32)
     full_training_data_mean = full_training_data.mean()
