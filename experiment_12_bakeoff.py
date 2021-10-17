@@ -74,15 +74,13 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_dataset, shuffle=False, pin_memory=True, batch_size=batch_size)
 
     population_filenames = [
-        './experiment_results/cifar_10_classifier_2021-09-25T11:48:40.767411.pickle',
-        './experiment_results/cifar_10_classifier_2021-09-26T08:04:46.863118.pickle',
-        './experiment_results/cifar_10_classifier_2021-09-27T02:13:14.947593.pickle'
+        'experiment_results/cifar_10_classifier_2021-09-09T12:38:00.688154.pickle',
+        'experiment_results/cifar_10_classifier_2021-09-14T23:05:27.655204.pickle'
     ]
 
     accuracy_filenames = [
-        './experiment_results/cifar_10_classifier_accuracy_2021-10-12T04:12:20.463399.pickle',
-        './experiment_results/cifar_10_classifier_accuracy_2021-10-13T07:32:39.393217.pickle',
-        './experiment_results/cifar_10_classifier_accuracy_2021-10-14T01:01:22.566068.pickle'
+        'experiment_results/cifar_10_classifier_accuracy_2021-09-10T10:01:44.403476.pickle',
+        'experiment_results/cifar_10_classifier_accuracy_2021-09-17T00:26:15.461533.pickle'
     ]
    
     results = {}
@@ -108,6 +106,7 @@ if __name__ == "__main__":
         for genome in population_data['fitnesses']:
             if genome.to_cache_key() == best_genome_key:
                 best_genome = genome
+        saynow(best_genome.to_cache_key())
         result = evaluate_accuracy(genome, n_epochs, checking_interval, training_loader, test_loader)
         saynow(result)
         results[best_genome] = result
